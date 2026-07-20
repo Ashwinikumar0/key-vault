@@ -60,13 +60,15 @@ func TestMain(m *testing.M) {
 	cleanDB()
 
 	// 4. Run Migrations & Seed Admin
-	err = db.MigrateAndSeed(testDB, "admin@test.local", "adminpassword123")
+	adminEmail := getEnv("DEFAULT_ADMIN_EMAIL", "admin@test.local")
+	adminPassword := getEnv("DEFAULT_ADMIN_PASSWORD", "adminpassword123")
+	err = db.MigrateAndSeed(testDB, adminEmail, adminPassword)
 	if err != nil {
 		log.Fatalf("Fatal: Failed to execute test migrations: %v", err)
 	}
 
 	jwtSecretKey = getEnv("JWT_SECRET", "test-secret-key-12345678901234567890")
-	adminAuthHash = db.DeriveAuthHash("adminpassword123", "admin@test.local")
+	adminAuthHash = db.DeriveAuthHash(adminPassword, adminEmail)
 
 	// 5. Initialize repositories and router handlers
 	userRepo := repository.NewPostgresUserRepository(testDB)

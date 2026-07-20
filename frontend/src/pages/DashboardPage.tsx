@@ -5,6 +5,7 @@ import { useSecrets } from "../hooks/useSecrets";
 import { Modal } from "../components/Modal";
 import { SecretCard } from "../components/SecretCard";
 import { PasswordGenerator } from "../components/PasswordGenerator";
+import { ImportExportActions } from "../components/ImportExportActions";
 import {
   Folder,
   FolderPlus,
@@ -12,7 +13,9 @@ import {
   Plus,
   LogOut,
   Lock,
-  Trash2
+  Trash2,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 type SecretItemType = "login" | "connection" | "api" | "certificate" | "note";
@@ -69,9 +72,16 @@ export const DashboardPage: React.FC = () => {
 
   // Custom multi-fields creation state
   const [customFields, setCustomFields] = useState<CustomField[]>(TEMPLATES.api);
-  
+
   // Focus tracking to know where the password generator should inject its text
   const [lastFocusedSecretIndex, setLastFocusedSecretIndex] = useState<number>(0);
+
+  // Field visibility states for toggling eye icon in secret creation modal
+  const [visibleFields, setVisibleFields] = useState<Record<number, boolean>>({});
+
+  // JSON Import/Export states
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Custom Hooks (SOLID - Separation of Concerns)
   const {
@@ -87,6 +97,7 @@ export const DashboardPage: React.FC = () => {
     secrets,
     isLoading: secretsLoading,
     createSecret,
+    createSecretAsync,
     isCreating: secretCreating,
     error: secretCreateError,
     resetStatus: resetSecretCreateStatus
@@ -130,6 +141,7 @@ export const DashboardPage: React.FC = () => {
           setSelectedType("api");
           setCustomFields(TEMPLATES.api);
           setLastFocusedSecretIndex(0);
+          setVisibleFields({});
           setIsSecretModalOpen(false);
           resetSecretCreateStatus();
         },
@@ -143,6 +155,11 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleCloseSecretModal = () => {
+    setNewSecretName("");
+    setSelectedType("api");
+    setCustomFields(TEMPLATES.api);
+    setLastFocusedSecretIndex(0);
+    setVisibleFields({});
     setIsSecretModalOpen(false);
     resetSecretCreateStatus();
   };
@@ -255,12 +272,41 @@ export const DashboardPage: React.FC = () => {
                 <Folder size={24} style={{ color: "var(--primary)" }} />
                 <h1 className="page-title">{activeWorkspace.workspace_name}</h1>
               </div>
-              <button className="btn btn-primary" onClick={() => setIsSecretModalOpen(true)}>
-                <Plus size={16} /> Add Secret
-              </button>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <ImportExportActions
+                  secrets={secrets}
+                  activeWorkspaceName={activeWorkspace.workspace_name}
+                  encryptionKey={encryptionKey}
+                  createSecretAsync={createSecretAsync}
+                  onImportStart={() => {
+                    setIsImporting(true);
+                    setImportError(null);
+                  }}
+                  onImportEnd={(err) => {
+                    setIsImporting(false);
+                    if (err) setImportError(err);
+                  }}
+                  disabled={isImporting}
+                />
+                <button className="btn btn-primary" onClick={() => setIsSecretModalOpen(true)} disabled={isImporting}>
+                  <Plus size={16} /> Add Secret
+                </button>
+              </div>
             </header>
 
             <section className="content-body">
+              {importError && (
+                <div className="alert alert-danger" style={{ marginBottom: "20px" }}>
+                  <span>{importError}</span>
+                </div>
+              )}
+
+              {isImporting && (
+                <div className="alert alert-info" style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Lock size={16} />
+                  <span>Importing and encrypting credentials locally... Please do not close this window.</span>
+                </div>
+              )}
               {secretsLoading ? (
                 <div className="empty-state">Loading workspace keys...</div>
               ) : !secrets || secrets.length === 0 ? (
@@ -381,7 +427,7 @@ export const DashboardPage: React.FC = () => {
                 autoFocus
               />
             </div>
-            
+
             <div style={{ flex: 1 }}>
               <label className="form-label" htmlFor="item-type">
                 Item Template
@@ -428,10 +474,10 @@ export const DashboardPage: React.FC = () => {
               }}
             >
               {customFields.map((field, idx) => {
-                const isKeyOrNote = 
-                  field.name === "Private Key" || 
-                  field.name === "Public Key" || 
-                  field.name === "Note" || 
+                const isKeyOrNote =
+                  field.name === "Private Key" ||
+                  field.name === "Public Key" ||
+                  field.name === "Note" ||
                   selectedType === "note";
 
                 return (
@@ -478,19 +524,41 @@ export const DashboardPage: React.FC = () => {
                           style={{ padding: "8px 12px", fontSize: "13px", resize: "vertical", fontFamily: "monospace" }}
                         />
                       ) : (
-                        <input
-                          type={field.type === "secret" ? "password" : "text"}
-                          className="form-input"
-                          placeholder="Value"
-                          value={field.value}
-                          onChange={(e) => handleUpdateField(idx, "value", e.target.value)}
-                          onFocus={() => {
-                            if (field.type === "secret") setLastFocusedSecretIndex(idx);
-                          }}
-                          required
-                          disabled={secretCreating}
-                          style={{ padding: "8px 12px", fontSize: "13px" }}
-                        />
+                        <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+                          <input
+                            type={field.type === "secret" && !visibleFields[idx] ? "password" : "text"}
+                            className="form-input"
+                            placeholder="Value"
+                            value={field.value}
+                            onChange={(e) => handleUpdateField(idx, "value", e.target.value)}
+                            onFocus={() => {
+                              if (field.type === "secret") setLastFocusedSecretIndex(idx);
+                            }}
+                            required
+                            disabled={secretCreating}
+                            style={{ padding: "8px 36px 8px 12px", fontSize: "13px", width: "100%" }}
+                          />
+                          {field.type === "secret" && (
+                            <button
+                              type="button"
+                              onClick={() => setVisibleFields((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                              style={{
+                                position: "absolute",
+                                right: "8px",
+                                background: "none",
+                                border: "none",
+                                color: "var(--text-muted)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                padding: 0
+                              }}
+                              title={visibleFields[idx] ? "Hide value" : "Show value"}
+                            >
+                              {visibleFields[idx] ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
 

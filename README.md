@@ -40,6 +40,26 @@ When storing credentials:
 - The entire JSON structure (`JSON.stringify(fields)`) is encrypted on the client using **AES-256-GCM** with a random 12-byte Initialization Vector (IV).
 - The server only receives the item name, ciphertext, and IV. The names, values, and types of your custom fields are completely hidden from system administrators.
 
+### 3. Zero-Knowledge Decrypted Export & Local Import
+
+KeyVault supports exporting and importing your secrets database as structured JSON documents. All processing is executed client-side, preserving the Zero-Knowledge security model.
+
+* **E2E Decrypted Export**: When clicking **Export JSON**, the client-side app decrypts each stored item in the active workspace using your in-memory stretched PBKDF2 key, compile them into a plain text JSON backup file, and triggers a browser download.
+* **Local Encrypted Import**: When selecting a `.json` backup file via **Import JSON**, the client validates the file schema, encrypts each secret's field list using **AES-256-GCM** with a new, random 12-byte IV, and uploads them to the server.
+* **Sample Template**: You can click **Download Template** in the workspace header to download a skeleton import file ([keyvault_import_template.json](file:///c:/_ashwin/Projects/key-vault/keyvault_import_template.json)) mapping structural values:
+  ```json
+  [
+    {
+      "name": "My Prod Server DB",
+      "itemType": "connection",
+      "fields": [
+        { "name": "Connection URI", "value": "postgres://db_user:password@host:5432/db", "type": "secret" },
+        { "name": "DB Host", "value": "host.domain", "type": "plaintext" }
+      ]
+    }
+  ]
+  ```
+
 ---
 
 ## 🛠 Tech Stack & Code Conventions

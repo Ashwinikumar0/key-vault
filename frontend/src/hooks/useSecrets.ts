@@ -37,6 +37,7 @@ export function useSecrets(workspaceId: string | null) {
     secrets: secretsQuery.data,
     isLoading: secretsQuery.isLoading,
     createSecret: createSecretMutation.mutate,
+    createSecretAsync: createSecretMutation.mutateAsync,
     isCreating: createSecretMutation.isPending,
     error: secretsQuery.error || createSecretMutation.error,
     resetStatus: createSecretMutation.reset,
