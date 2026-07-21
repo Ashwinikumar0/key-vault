@@ -1,0 +1,19 @@
+{
+  "name": "key-vault-e2e-tests",
+  "version": "1.0.0",
+  "description": "E2E BDD Test Suite for KeyVault using Playwright and Cucumber",
+  "scripts": {
+    "test": "cucumber-js || (node report_generator.js && exit 1) && node report_generator.js",
+    "test:docker": "node run_docker_tests.js",
+    "cucumber": "cucumber-js"
+  },
+  "dependencies": {
+    "@cucumber/cucumber": "^11.1.0",
+    "@playwright/test": "^1.49.0",
+    "dotenv": "^16.4.5",
+    "playwright": "^1.49.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "multiple-cucumber-html-reporter": "3.6.2"
+  }
+}

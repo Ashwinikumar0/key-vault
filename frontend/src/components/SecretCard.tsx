@@ -123,7 +123,7 @@ export const SecretCard: React.FC<SecretCardProps> = ({ secret, encryptionKey })
   };
 
   return (
-    <div className="card glass-panel secret-card animate-fade-in" style={{ padding: "24px" }}>
+    <div className="card glass-panel secret-card animate-fade-in" style={{ padding: "24px" }} data-testid="secret-card">
       <div className="card-header" style={{ marginBottom: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {getItemIcon()}
@@ -155,6 +155,7 @@ export const SecretCard: React.FC<SecretCardProps> = ({ secret, encryptionKey })
             onClick={handleDecryptCard}
             disabled={isDecrypting}
             style={{ fontSize: "13px", padding: "8px 16px", gap: "6px" }}
+            data-testid="decrypt-card-button"
           >
             {isDecrypting ? (
               "Decrypting..."
@@ -196,7 +197,7 @@ export const SecretCard: React.FC<SecretCardProps> = ({ secret, encryptionKey })
                     }}
                   >
                     {isSecret && !isRevealed ? (
-                      <span className="secret-value" style={{ fontSize: "13px" }}>
+                      <span className="secret-value" style={{ fontSize: "13px" }} data-testid="secret-field-value-masked">
                         ••••••••••••••••
                       </span>
                     ) : isMultiLine ? (
@@ -216,11 +217,12 @@ export const SecretCard: React.FC<SecretCardProps> = ({ secret, encryptionKey })
                           color: "#e2e8f0",
                           flex: 1
                         }}
+                        data-testid="secret-field-value"
                       >
                         {field.value}
                       </pre>
                     ) : (
-                      <span className="secret-value" style={{ fontSize: "13px" }}>
+                      <span className="secret-value" style={{ fontSize: "13px" }} data-testid="secret-field-value">
                         {field.value}
                       </span>
                     )}

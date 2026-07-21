@@ -107,7 +107,7 @@ export const AdminPage: React.FC = () => {
       <main className="main-content">
         <header className="topbar">
           <h1 className="page-title">Admin Dashboard</h1>
-          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)} data-testid="create-user-trigger">
             <UserPlus size={16} /> Add User Account
           </button>
         </header>
@@ -192,6 +192,7 @@ export const AdminPage: React.FC = () => {
                 onChange={(e) => setNewEmail(e.target.value)}
                 required
                 disabled={isCreating}
+                data-testid="user-email-input"
               />
             </div>
 
@@ -205,6 +206,7 @@ export const AdminPage: React.FC = () => {
                 value={newRole}
                 onChange={(e) => setNewRole(e.target.value as UserRole)}
                 disabled={isCreating}
+                data-testid="user-role-select"
               >
                 <option value={UserRole.USER}>Standard User (Vault Owner)</option>
                 <option value={UserRole.ADMIN}>System Administrator</option>
@@ -220,7 +222,7 @@ export const AdminPage: React.FC = () => {
               >
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" disabled={isCreating}>
+              <button type="submit" className="btn btn-primary" disabled={isCreating} data-testid="user-submit">
                 {isCreating ? "Creating Account..." : "Create Account"}
               </button>
             </div>
@@ -237,7 +239,7 @@ export const AdminPage: React.FC = () => {
             </p>
 
             <div className="secret-val-container" style={{ margin: "8px 0" }}>
-              <span className="secret-value" style={{ fontSize: "16px", color: "#fff", fontWeight: 700 }}>
+              <span className="secret-value" style={{ fontSize: "16px", color: "#fff", fontWeight: 700 }} data-testid="temp-password-display">
                 {createdUserData.temporary_password}
               </span>
               <button className="icon-btn" onClick={handleCopyPassword}>

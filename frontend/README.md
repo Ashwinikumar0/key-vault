@@ -1,32 +1,45 @@
-# React + TypeScript + Vite
+# KeyVault Frontend - React Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+This directory contains the user interface client for KeyVault. It is a single-page application built with **React**, **TypeScript**, and **Vite**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🔒 Security Architecture (Client-Side)
 
-## React Compiler
+All cryptographic operations happen client-side using the browser's native **Web Crypto API**:
+- **Key Derivation**: Performs PBKDF2 stretching (100,000 iterations, SHA-256) on your master password + email salt to derive the symmetric key.
+- **AES-GCM-256 Encryption**: Encrypts and decrypts secret payload arrays in memory, ensuring that plaintext data is never exposed to the network stack.
+- **Inactivity Purge**: Clears active encryption keys from memory if the tab is inactive for **15 minutes** or is reloaded/closed.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 🛠 Prerequisites & Local Run
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### 1. Configure Environment variables
+Ensure you have a `.env` file in this directory:
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```env
+VITE_API_BASE_URL=http://localhost:8080/api
+VITE_DEFAULT_ADMIN_EMAIL=admin@keyvault.local
+VITE_DEFAULT_ADMIN_PASSWORD=adminpassword123
+```
+*(Note: Change `VITE_API_BASE_URL` to `/api` if testing in a proxy/Docker context.)*
+
+### 2. Install & Launch
+Run the following commands:
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start Vite dev server locally
+pnpm dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The application will launch on `http://localhost:5173`.
+
+---
+
+## 🧪 E2E Verification & BDD Tests
+End-to-End tests are implemented using **Playwright** and **Cucumber Gherkin**. 
+Refer to [e2e-tests/README.md](../e2e-tests/README.md) for full execution and HTML report documentation.

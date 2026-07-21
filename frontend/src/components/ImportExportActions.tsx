@@ -172,6 +172,7 @@ export const ImportExportActions: React.FC<ImportExportActionsProps> = ({
         disabled={disabled}
         title="Download template import format JSON"
         style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 12px", fontSize: "13px" }}
+        data-testid="download-template-button"
       >
         <Download size={14} /> Download Template
       </button>
@@ -182,6 +183,7 @@ export const ImportExportActions: React.FC<ImportExportActionsProps> = ({
         disabled={disabled || !secrets || secrets.length === 0}
         title="Decrypt and export all secrets inside this workspace"
         style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 12px", fontSize: "13px" }}
+        data-testid="export-json-button"
       >
         <Download size={14} /> Export JSON
       </button>
@@ -205,6 +207,7 @@ export const ImportExportActions: React.FC<ImportExportActionsProps> = ({
           onChange={handleImportSecrets}
           style={{ display: "none" }}
           disabled={disabled}
+          data-testid="import-json-input"
         />
       </label>
     </div>

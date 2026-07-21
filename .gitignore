@@ -134,3 +134,6 @@ go.work
 
 # Docker/PostgreSQL local volumes
 pgdata/
+
+# E2E Test Reports, HTML dashboards, screenshots, and playback videos
+/e2e-tests/reports/

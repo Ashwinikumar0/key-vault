@@ -39,8 +39,6 @@ services:
       db:
         condition: service_healthy
 
-
-
 volumes:
   pgdata:
     driver: local

@@ -48,6 +48,8 @@ export function useAuthSession(
     sessionLoading: sessionQuery.isLoading,
     login: loginMutation.mutateAsync,
     isLoggingIn: loginMutation.isPending,
+    loginError: loginMutation.error,
+    clearLoginError: loginMutation.reset,
     logout: logoutMutation.mutateAsync,
   };
 }

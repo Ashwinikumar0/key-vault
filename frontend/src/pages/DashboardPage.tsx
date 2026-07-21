@@ -219,7 +219,7 @@ export const DashboardPage: React.FC = () => {
           <div className="sidebar-section">
             <div className="sidebar-section-title">
               <span>Workspaces</span>
-              <button className="icon-btn" onClick={() => setIsWorkspaceModalOpen(true)} title="Create new workspace">
+              <button className="icon-btn" onClick={() => setIsWorkspaceModalOpen(true)} title="Create new workspace" data-testid="create-workspace-trigger">
                 <Plus size={16} />
               </button>
             </div>
@@ -236,6 +236,7 @@ export const DashboardPage: React.FC = () => {
                   key={w.id}
                   className={`sidebar-item ${selectedWorkspaceId === w.id ? "active" : ""}`}
                   onClick={() => setSelectedWorkspaceId(w.id)}
+                  data-testid="workspace-item"
                 >
                   <span style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden", textOverflow: "ellipsis" }}>
                     <Folder size={16} />
@@ -288,7 +289,7 @@ export const DashboardPage: React.FC = () => {
                   }}
                   disabled={isImporting}
                 />
-                <button className="btn btn-primary" onClick={() => setIsSecretModalOpen(true)} disabled={isImporting}>
+                <button className="btn btn-primary" onClick={() => setIsSecretModalOpen(true)} disabled={isImporting} data-testid="add-secret-trigger">
                   <Plus size={16} /> Add Secret
                 </button>
               </div>
@@ -342,7 +343,7 @@ export const DashboardPage: React.FC = () => {
               <p className="empty-desc">
                 Select an existing project workspace from the sidebar folder directory, or create a new one to store client-encrypted keys.
               </p>
-              <button className="btn btn-primary" onClick={() => setIsWorkspaceModalOpen(true)}>
+              <button className="btn btn-primary" onClick={() => setIsWorkspaceModalOpen(true)} data-testid="create-workspace-trigger-empty">
                 <FolderPlus size={16} /> Create Workspace Folder
               </button>
             </div>
@@ -377,6 +378,7 @@ export const DashboardPage: React.FC = () => {
               required
               disabled={workspaceCreating}
               autoFocus
+              data-testid="workspace-name-input"
             />
           </div>
 
@@ -389,7 +391,7 @@ export const DashboardPage: React.FC = () => {
             >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={workspaceCreating}>
+            <button type="submit" className="btn btn-primary" disabled={workspaceCreating} data-testid="workspace-name-submit">
               {workspaceCreating ? "Creating Folder..." : "Create Folder"}
             </button>
           </div>
@@ -425,6 +427,7 @@ export const DashboardPage: React.FC = () => {
                 required
                 disabled={secretCreating}
                 autoFocus
+                data-testid="secret-name-input"
               />
             </div>
 
@@ -438,6 +441,7 @@ export const DashboardPage: React.FC = () => {
                 value={selectedType}
                 onChange={(e) => handleTypeTemplateChange(e.target.value as SecretItemType)}
                 disabled={secretCreating}
+                data-testid="item-type-select"
               >
                 <option value="api">API Key</option>
                 <option value="login">Login Login</option>
@@ -457,6 +461,7 @@ export const DashboardPage: React.FC = () => {
                 onClick={handleAddFieldRow}
                 style={{ padding: "4px 10px", fontSize: "11px", gap: "4px" }}
                 disabled={secretCreating}
+                data-testid="field-add-button"
               >
                 <Plus size={12} /> Add Field
               </button>
@@ -492,6 +497,7 @@ export const DashboardPage: React.FC = () => {
                         required
                         disabled={secretCreating}
                         style={{ padding: "8px 12px", fontSize: "13px" }}
+                        data-testid="field-name-input"
                       />
                     </div>
 
@@ -502,6 +508,7 @@ export const DashboardPage: React.FC = () => {
                         onChange={(e) => handleUpdateField(idx, "type", e.target.value as "secret" | "plaintext")}
                         disabled={secretCreating}
                         style={{ padding: "8px 12px", fontSize: "13px" }}
+                        data-testid="field-type-select"
                       >
                         <option value="secret">Secret</option>
                         <option value="plaintext">Plain text</option>
@@ -522,6 +529,7 @@ export const DashboardPage: React.FC = () => {
                           required
                           disabled={secretCreating}
                           style={{ padding: "8px 12px", fontSize: "13px", resize: "vertical", fontFamily: "monospace" }}
+                          data-testid="field-value-input"
                         />
                       ) : (
                         <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
@@ -537,6 +545,7 @@ export const DashboardPage: React.FC = () => {
                             required
                             disabled={secretCreating}
                             style={{ padding: "8px 36px 8px 12px", fontSize: "13px", width: "100%" }}
+                            data-testid="field-value-input"
                           />
                           {field.type === "secret" && (
                             <button
@@ -554,6 +563,7 @@ export const DashboardPage: React.FC = () => {
                                 padding: 0
                               }}
                               title={visibleFields[idx] ? "Hide value" : "Show value"}
+                              data-testid="field-eye-toggle"
                             >
                               {visibleFields[idx] ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -570,6 +580,7 @@ export const DashboardPage: React.FC = () => {
                         disabled={secretCreating}
                         style={{ color: "var(--danger)", marginTop: isKeyOrNote ? "8px" : 0 }}
                         title="Delete field"
+                        data-testid="field-remove"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -594,7 +605,7 @@ export const DashboardPage: React.FC = () => {
             >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={secretCreating}>
+            <button type="submit" className="btn btn-primary" disabled={secretCreating} data-testid="secret-submit">
               {secretCreating ? "Encrypting & Storing..." : "Store Encrypted Item"}
             </button>
           </div>

@@ -3,34 +3,37 @@ import { useAuth } from "../context/AuthContext";
 import { KeyRound, ShieldAlert } from "lucide-react";
 
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { login, loginError, clearLoginError } = useAuth();
   const [email, setEmail] = useState(import.meta.env.VITE_DEFAULT_ADMIN_EMAIL || "");
   const [password, setPassword] = useState(import.meta.env.VITE_DEFAULT_ADMIN_PASSWORD || "");
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setError("Please fill in all fields.");
+      setLocalError("Please fill in all fields.");
       return;
     }
 
-    setError(null);
+    setLocalError(null);
+    clearLoginError();
     setIsSubmitting(true);
 
     try {
       await login(email, password);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setLocalError(err.message);
       } else {
-        setError("Login failed. Please check your credentials.");
+        setLocalError("Login failed. Please check your credentials.");
       }
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const activeError = localError || loginError?.message;
 
   return (
     <div className="auth-container">
@@ -45,10 +48,10 @@ export const LoginPage: React.FC = () => {
           <p className="auth-subtitle">Zero-Knowledge End-to-End Encrypted Vault</p>
         </div>
 
-        {error && (
-          <div className="alert alert-danger animate-fade-in">
+        {activeError && (
+          <div className="alert alert-danger animate-fade-in" data-testid="login-error">
             <ShieldAlert size={18} />
-            <span>{error}</span>
+            <span>{activeError}</span>
           </div>
         )}
 
@@ -63,9 +66,14 @@ export const LoginPage: React.FC = () => {
               className="form-input"
               placeholder="you@domain.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setLocalError(null);
+                clearLoginError();
+              }}
               disabled={isSubmitting}
               required
+              data-testid="login-email"
             />
           </div>
 
@@ -79,9 +87,14 @@ export const LoginPage: React.FC = () => {
               className="form-input"
               placeholder="••••••••••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setLocalError(null);
+                clearLoginError();
+              }}
               disabled={isSubmitting}
               required
+              data-testid="login-password"
             />
             <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
               We never see your password. Encryption happens client-side.
@@ -92,6 +105,7 @@ export const LoginPage: React.FC = () => {
             type="submit"
             className="btn btn-primary btn-block"
             disabled={isSubmitting}
+            data-testid="login-submit"
           >
             {isSubmitting ? "Deriving Keys & Logging in..." : "Access Vault"}
           </button>

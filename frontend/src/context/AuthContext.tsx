@@ -10,6 +10,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearEncryptionKey: () => void;
+  loginError: Error | null;
+  clearLoginError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,6 +37,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     sessionLoading,
     login: loginApi,
     isLoggingIn,
+    loginError,
+    clearLoginError,
     logout: logoutApi,
   } = useAuthSession(
     (loggedUser, derivedKey) => {
@@ -124,6 +128,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         login,
         logout,
         clearEncryptionKey,
+        loginError,
+        clearLoginError,
       }}
     >
       {children}

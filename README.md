@@ -177,3 +177,59 @@ docker-compose -f backend/tests/docker-compose.yml up --build
 
 Full test documentation (setup, local run, docker commands) is in:
 `backend/tests/README.md`.
+
+---
+
+## 🧪 Frontend & E2E Browser BDD Tests
+
+The E2E test suite uses **Playwright** and **Cucumber (Gherkin)** to test the full E2E user flow inside a headless Chromium browser.
+
+### Option 1: Run E2E Tests Locally on Your PC (Standard/Debug Mode)
+
+If you are running the frontend and backend servers locally on your host machine (e.g., via the VS Code debugger or `go run` / `pnpm dev`):
+
+1. **Navigate to the test suite directory**:
+   ```bash
+   cd e2e-tests
+   ```
+2. **Install testing dependencies**:
+   ```bash
+   pnpm install
+   ```
+3. **Install the Playwright browser binaries (one-time setup)**:
+   ```bash
+   pnpm exec playwright install chromium
+   ```
+4. **Execute the tests**:
+   * **Windows PowerShell**:
+     ```powershell
+     $env:BASE_URL="http://localhost:5173"; pnpm test
+     ```
+   * **Linux / macOS / Git Bash**:
+     ```bash
+     BASE_URL=http://localhost:5173 pnpm test
+     ```
+   *(Note: If `BASE_URL` is omitted, it defaults automatically to `http://localhost:5173`.)*
+
+---
+
+### Option 2: Run E2E Tests in Docker (Automated Lifecycle Orchestration)
+
+To run the entire E2E test stack (database, backend, frontend, and browser runners) inside isolated containers with automatic teardown and volume cleanup:
+
+1. **Navigate to the test suite directory**:
+   ```bash
+   cd e2e-tests
+   ```
+2. **Run the automated E2E Docker script**:
+   ```bash
+   pnpm test:docker
+   ```
+   *This command automatically spins up the Docker Compose stack, executes all playbooks sequentially with custom persistent profiles (eliminating cookie leaks), sanitizes Cucumber report payloads, compiles the final HTML report, and tears down the containers/volumes to ensure clean state migrations.*
+
+3. **Check the Output Reports & Media Assets**:
+   * **Latest HTML Summary**: Open `e2e-tests/reports/html/index.html` directly in your web browser to see the full Gherkin execution dashboard.
+   * **Timestamped Media Runs**: Each run outputs its media assets to a dedicated, timestamped folder to prevent files from getting mixed. Look inside:
+     * **Videos**: [e2e-tests/reports/runs/<timestamp>/videos/](file:///c:/_ashwin/Projects/key-vault/e2e-tests/reports/runs) (slowed down to normal human speed with mouse cursors recorded).
+     * **Screenshots**: [e2e-tests/reports/runs/<timestamp>/screenshots/](file:///c:/_ashwin/Projects/key-vault/e2e-tests/reports/runs) (showing exact viewports at step failures).
+
