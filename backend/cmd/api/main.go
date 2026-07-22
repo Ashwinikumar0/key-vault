@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -30,6 +33,9 @@ func main() {
 	}
 	log.SetOutput(logWriter)
 
+	// Load local .env configuration if present
+	loadEnv()
+
 	log.Println("Starting Key Vault API Server...")
 
 	// 1. Load Configurations from Env
@@ -49,24 +55,49 @@ func main() {
 	adminPassword := getEnv("DEFAULT_ADMIN_PASSWORD", "adminpassword123")
 
 	// 2. Connect to Database
-	dbCfg := db.Config{
-		Host:     dbHost,
-		Port:     dbPort,
-		User:     dbUser,
-		Password: dbPass,
-		DBName:   dbName,
-		SSLMode:  dbSSL,
-	}
+	dbDriver := getEnv("DB_DRIVER", "postgres")
+	var sqlDB *sql.DB
+	var dbErr error
 
-	sqlDB, err := db.Connect(dbCfg)
-	if err != nil {
-		log.Fatalf("Fatal error connecting to database: %v", err)
+	if dbDriver == "sqlite" {
+		sqlitePath := getEnv("SQLITE_DB_PATH", "")
+		if sqlitePath == "" {
+			userDir, err := os.UserConfigDir()
+			if err != nil {
+				log.Fatalf("Failed to resolve user config directory: %v", err)
+			}
+			sqlitePath = filepath.Join(userDir, "KeyVault", "keyvault.db")
+		}
+		log.Printf("Connecting to SQLite database at: %s...", sqlitePath)
+		sqlDB, dbErr = db.ConnectSQLite(sqlitePath)
+		if dbErr != nil {
+			log.Fatalf("Fatal error connecting to SQLite: %v", dbErr)
+		}
+	} else {
+		dbCfg := db.Config{
+			Host:     dbHost,
+			Port:     dbPort,
+			User:     dbUser,
+			Password: dbPass,
+			DBName:   dbName,
+			SSLMode:  dbSSL,
+		}
+		log.Printf("Connecting to PostgreSQL database at %s:%s...", dbHost, dbPort)
+		sqlDB, dbErr = db.Connect(dbCfg)
+		if dbErr != nil {
+			log.Fatalf("Fatal error connecting to PostgreSQL: %v", dbErr)
+		}
 	}
 	defer sqlDB.Close()
 
 	// 3. Migrate and Seed
 	log.Println("Running database migrations and seeds...")
-	if err := db.MigrateAndSeed(sqlDB, adminEmail, adminPassword); err != nil {
+	if dbDriver == "sqlite" {
+		err = db.MigrateAndSeedSQLite(sqlDB, adminEmail, adminPassword)
+	} else {
+		err = db.MigrateAndSeed(sqlDB, adminEmail, adminPassword)
+	}
+	if err != nil {
 		log.Fatalf("Fatal error running migrations: %v", err)
 	}
 	log.Println("Database setup complete.")
@@ -176,4 +207,32 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func loadEnv() {
+	file, err := os.Open(".env")
+	if err != nil {
+		return // Ignore if .env is missing (e.g. in docker prod)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			// Strip surrounding quotes if present
+			if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
+				value = value[1 : len(value)-1]
+			} else if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
+				value = value[1 : len(value)-1]
+			}
+			os.Setenv(key, value)
+		}
+	}
 }

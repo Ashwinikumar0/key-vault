@@ -1,0 +1,55 @@
+{
+  "name": "key-vault-desktop",
+  "version": "1.0.0",
+  "description": "Zero-Knowledge E2E Encrypted Key & Credential Manager Desktop Client",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "compile": "tsc",
+    "prestart": "tsc && node dist-electron/build-backend.js && node dist-electron/copy-frontend.js",
+    "start": "electron .",
+    "prebuild": "tsc && node dist-electron/build-backend.js && node dist-electron/copy-frontend.js && node dist-electron/clean-db.js",
+    "build": "electron-builder --win nsis"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^31.1.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.4.5"
+  },
+  "build": {
+    "appId": "com.keyvault.desktop",
+    "productName": "KeyVault",
+    "directories": {
+      "output": "dist-packaged"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "frontend-dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
+  }
+}

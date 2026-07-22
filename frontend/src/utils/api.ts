@@ -44,8 +44,13 @@ export interface CreateUserResponse {
 }
 
 // Create configured Axios instance
+const isElectron = typeof window !== "undefined" && !!(window as any).electronAPI;
+const apiBaseUrl = isElectron 
+  ? "/api" 
+  : (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api");
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api",
+  baseURL: apiBaseUrl,
   withCredentials: true, // Critical for automatic HTTP-Only Cookie storage and delivery
 });
 

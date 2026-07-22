@@ -1,13 +1,13 @@
 # Stage 1: Build binary
-FROM golang:1.20-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 
-# Copy mod file
-COPY go.mod ./
+# Copy mod and sum files
+COPY go.mod go.sum ./
 
-# Run tidy inside the container to download dependencies and generate go.sum automatically
-RUN go mod tidy
+# Download dependencies
+RUN go mod download
 
 # Copy source code
 COPY . .

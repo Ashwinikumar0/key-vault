@@ -137,3 +137,10 @@ pgdata/
 
 # E2E Test Reports, HTML dashboards, screenshots, and playback videos
 /e2e-tests/reports/
+
+# Electron Desktop client packaging & compilation artifacts
+/desktop/dist-electron/
+/desktop/dist-packaged/
+/desktop/frontend-dist/
+/desktop/bin/
+/desktop/Logs/
