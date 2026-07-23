@@ -112,3 +112,28 @@ func (r *PostgresUserRepository) GetStats(ctx context.Context) ([]*models.UserSt
 	}
 	return stats, nil
 }
+
+func (r *PostgresUserRepository) DeleteUserCascade(ctx context.Context, id string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	deleteSecretsQuery := rebind(`DELETE FROM secrets WHERE workspace_id IN (SELECT id FROM workspaces WHERE user_id = $1)`)
+	if _, err := tx.ExecContext(ctx, deleteSecretsQuery, id); err != nil {
+		return err
+	}
+
+	deleteWorkspacesQuery := rebind(`DELETE FROM workspaces WHERE user_id = $1`)
+	if _, err := tx.ExecContext(ctx, deleteWorkspacesQuery, id); err != nil {
+		return err
+	}
+
+	deleteUserQuery := rebind(`DELETE FROM users WHERE id = $1`)
+	if _, err := tx.ExecContext(ctx, deleteUserQuery, id); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}

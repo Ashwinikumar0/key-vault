@@ -118,6 +118,18 @@ export const api = {
       const res = await apiClient.get<WorkspaceResponse[]>("/workspaces");
       return res.data;
     },
+
+    update: async (workspaceId: string, workspaceName: string) => {
+      const res = await apiClient.put<WorkspaceResponse>(`/workspaces/${workspaceId}`, {
+        workspace_name: workspaceName,
+      });
+      return res.data;
+    },
+
+    delete: async (workspaceId: string) => {
+      const res = await apiClient.delete<{ message: string }>(`/workspaces/${workspaceId}`);
+      return res.data;
+    },
   },
 
   secrets: {
@@ -138,6 +150,32 @@ export const api = {
     
     list: async (workspaceId: string) => {
       const res = await apiClient.get<SecretResponse[]>(`/secrets/${workspaceId}`);
+      return res.data;
+    },
+
+    update: async (
+      secretId: string,
+      secretName: string,
+      encryptedValue: string,
+      iv: string
+    ) => {
+      const res = await apiClient.put<SecretResponse>(`/secrets/${secretId}`, {
+        secret_name: secretName,
+        encrypted_value: encryptedValue,
+        iv,
+      });
+      return res.data;
+    },
+
+    delete: async (secretId: string) => {
+      const res = await apiClient.delete<{ message: string }>(`/secrets/${secretId}`);
+      return res.data;
+    },
+  },
+
+  user: {
+    deleteAccount: async () => {
+      const res = await apiClient.delete<{ message: string }>("/user/account");
       return res.data;
     },
   },

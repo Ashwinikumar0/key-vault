@@ -36,6 +36,35 @@ Feature: Zero-Knowledge Custom Secrets Management
       | Password    | supersecretpassphrase |
       | Website URL | https://stripe.com    |
 
+  Scenario: Edit and Delete Secret Credentials
+    Given I navigate to the login page
+    When I log in with credentials:
+      | email                | password         |
+      | admin@keyvault.local | adminpassword123 |
+    Then I should be redirected to the dashboard
+    When I create a user account with details:
+      | email                  | role |
+      | user_editsec@keyvault.local| user |
+    And I record the temporary password generated
+    When I click the logout button
+    Then I should be redirected back to the login page
+    When I log in with credentials:
+      | email                  | password       |
+      | user_editsec@keyvault.local| <tempPassword> |
+    Then I should be redirected to the dashboard
+    When I create a workspace folder named "Dev Ops Keys"
+    And I select the workspace folder named "Dev Ops Keys"
+    When I create a secret named "Old API Key" with template "api" and fields:
+      | name       | value        | type      |
+      | API Key    | api_key_1234 | plaintext |
+      | API Secret | secret_val1  | secret    |
+    And I click the submit secret button
+    Then I should see a secret card for "Old API Key"
+    When I edit secret "Old API Key" to new title "Updated Production Key"
+    Then I should see a secret card for "Updated Production Key"
+    When I delete the secret "Updated Production Key"
+    Then I should not see a secret card for "Updated Production Key"
+
   Scenario: JSON Template Downloads, Decrypted Exports, and Client-Side Imports
     Given I navigate to the login page
     When I log in with credentials:

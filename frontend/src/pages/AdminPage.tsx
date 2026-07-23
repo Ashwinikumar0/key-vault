@@ -14,10 +14,13 @@ import {
   Copy,
   Check,
   ShieldCheck,
-  Lock
+  Lock,
+  Key
 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 
 export const AdminPage: React.FC = () => {
+  const navigate = useNavigate();
   const { logout, user } = useAuth();
   const {
     users,
@@ -84,6 +87,11 @@ export const AdminPage: React.FC = () => {
                 <Users size={16} /> Users & Stats
               </span>
             </button>
+            <button className="sidebar-item" onClick={() => navigate({ to: "/dashboard" })}>
+              <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <Key size={16} /> My Vault & Passwords
+              </span>
+            </button>
           </div>
         </div>
 
@@ -107,9 +115,14 @@ export const AdminPage: React.FC = () => {
       <main className="main-content">
         <header className="topbar">
           <h1 className="page-title">Admin Dashboard</h1>
-          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)} data-testid="create-user-trigger">
-            <UserPlus size={16} /> Add User Account
-          </button>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button className="btn btn-secondary" onClick={() => navigate({ to: "/dashboard" })}>
+              <Key size={16} /> My Vault
+            </button>
+            <button className="btn btn-primary" onClick={() => setIsModalOpen(true)} data-testid="create-user-trigger">
+              <UserPlus size={16} /> Add User Account
+            </button>
+          </div>
         </header>
 
         <section className="content-body animate-fade-in">

@@ -14,8 +14,15 @@ func RegisterSecretSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		value := table.Rows[1].Cells[1].Value
 		iv := table.Rows[1].Cells[2].Value
 
-		// Consume the StoreSecret context service helper
 		tc.StoreSecret(tc.CreatedWorkspaceID, name, value, iv)
+
+		if tc.Response.Code == http.StatusCreated {
+			var resp map[string]interface{}
+			json.Unmarshal(tc.Response.Body.Bytes(), &resp)
+			if id, ok := resp["id"].(string); ok {
+				tc.CreatedSecretID = id
+			}
+		}
 		return nil
 	})
 
@@ -48,8 +55,29 @@ func RegisterSecretSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
+	ctx.Step(`^I update the stored secret to:$`, func(table *godog.Table) error {
+		name := table.Rows[1].Cells[0].Value
+		value := table.Rows[1].Cells[1].Value
+		iv := table.Rows[1].Cells[2].Value
+
+		path := fmt.Sprintf("/api/secrets/%s", tc.CreatedSecretID)
+		payload := map[string]string{
+			"secret_name":     name,
+			"encrypted_value": value,
+			"iv":              iv,
+		}
+		body, _ := json.Marshal(payload)
+		tc.PerformRequest("PUT", path, body)
+		return nil
+	})
+
+	ctx.Step(`^I delete the stored secret$`, func() error {
+		path := fmt.Sprintf("/api/secrets/%s", tc.CreatedSecretID)
+		tc.PerformRequest("DELETE", path, nil)
+		return nil
+	})
+
 	ctx.Step(`^I attempt to store a secret named "([^"]*)" in the user's workspace$`, func(name string) error {
-		// Attempt to store secret using the StoreSecret helper method
 		tc.StoreSecret(tc.CreatedWorkspaceID, name, "Base64PayloadBlob==", "Base64IV==")
 		return nil
 	})

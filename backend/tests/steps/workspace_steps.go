@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"key-vault/backend/internal/db"
 	"github.com/cucumber/godog"
@@ -44,6 +45,15 @@ func RegisterWorkspaceSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		createBody, _ := json.Marshal(createUserPayload)
 		tc.ActiveCookie = adminCookie
 		tc.PerformRequest("POST", "/api/admin/users", createBody)
+
+		if tc.Response.Code == http.StatusConflict {
+			if os.Getenv("DB_DRIVER") == "sqlite" {
+				tc.DB.Exec("DELETE FROM users WHERE email = ?", email)
+			} else {
+				tc.DB.Exec("DELETE FROM users WHERE email = $1", email)
+			}
+			tc.PerformRequest("POST", "/api/admin/users", createBody)
+		}
 
 		if tc.Response.Code != http.StatusCreated {
 			return fmt.Errorf("admin user creation failed: status %d", tc.Response.Code)
@@ -134,6 +144,22 @@ func RegisterWorkspaceSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		if !ok || actualName != expectedName {
 			return fmt.Errorf("expected workspace name %s, got %v", expectedName, resp["workspace_name"])
 		}
+		return nil
+	})
+
+	ctx.Step(`^I rename the active workspace to "([^"]*)"$`, func(newName string) error {
+		path := fmt.Sprintf("/api/workspaces/%s", tc.CreatedWorkspaceID)
+		payload := map[string]string{
+			"workspace_name": newName,
+		}
+		body, _ := json.Marshal(payload)
+		tc.PerformRequest("PUT", path, body)
+		return nil
+	})
+
+	ctx.Step(`^I request deletion of the active workspace$`, func() error {
+		path := fmt.Sprintf("/api/workspaces/%s", tc.CreatedWorkspaceID)
+		tc.PerformRequest("DELETE", path, nil)
 		return nil
 	})
 }

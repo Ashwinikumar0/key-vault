@@ -28,3 +28,23 @@ When("I select the workspace folder named {string}", async function (this: Custo
   const ws = new WorkspacePageHelper(this.page);
   await ws.selectWorkspace(name);
 });
+
+When("I rename the workspace folder {string} to {string}", async function (this: CustomWorld, oldName: string, newName: string) {
+  const ws = new WorkspacePageHelper(this.page);
+  await ws.renameWorkspace(oldName, newName);
+});
+
+When("I click delete for the workspace folder {string}", async function (this: CustomWorld, name: string) {
+  const ws = new WorkspacePageHelper(this.page);
+  await ws.clickDeleteWorkspace(name);
+});
+
+Then("I should see the workspace deletion warning dialog", async function (this: CustomWorld) {
+  const ws = new WorkspacePageHelper(this.page);
+  await ws.verifyCannotDeleteWorkspaceModal();
+});
+
+When("I confirm deletion of the workspace folder", async function (this: CustomWorld) {
+  const ws = new WorkspacePageHelper(this.page);
+  await ws.confirmDeleteWorkspace();
+});

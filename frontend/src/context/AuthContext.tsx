@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { useAuthSession } from "../hooks/useAuthSession";
 import type { UserResponse } from "../utils/api";
 
+import { exportEncryptionKey, importEncryptionKey } from "../utils/cryptoUtils";
+
 interface AuthContextType {
   user: UserResponse | null;
   encryptionKey: CryptoKey | null;
@@ -41,13 +43,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     clearLoginError,
     logout: logoutApi,
   } = useAuthSession(
-    (loggedUser, derivedKey) => {
+    async (loggedUser, derivedKey) => {
       // On Login Success callback
       setUser(loggedUser);
       setEncryptionKey(derivedKey);
+      try {
+        const exportedKey = await exportEncryptionKey(derivedKey);
+        sessionStorage.setItem("keyvault_enc_key", exportedKey);
+      } catch (err) {
+        console.error("Failed to store session encryption key:", err);
+      }
     },
     () => {
       // On Logout Success callback
+      sessionStorage.removeItem("keyvault_enc_key");
       setUser(null);
       setEncryptionKey(null);
       if (timeoutRef.current) {
@@ -58,11 +67,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   );
 
-  // Sync session user into context state on mount
+  // Sync session user into context state on mount & restore encryption key from tab storage if present
   useEffect(() => {
-    if (sessionUser !== undefined) {
-      setUser(sessionUser);
-    }
+    const syncSessionAndKey = async () => {
+      if (sessionUser !== undefined) {
+        setUser(sessionUser);
+        if (sessionUser && !encryptionKey) {
+          const storedKey = sessionStorage.getItem("keyvault_enc_key");
+          if (storedKey) {
+            try {
+              const importedKey = await importEncryptionKey(storedKey);
+              setEncryptionKey(importedKey);
+            } catch (err) {
+              console.error("Failed to restore session encryption key:", err);
+            }
+          }
+        }
+      }
+    };
+    syncSessionAndKey();
   }, [sessionUser]);
 
   const login = async (email: string, password: string) => {
@@ -70,10 +93,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
+    sessionStorage.removeItem("keyvault_enc_key");
     await logoutApi();
   };
 
   const clearEncryptionKey = () => {
+    sessionStorage.removeItem("keyvault_enc_key");
     setEncryptionKey(null);
   };
 

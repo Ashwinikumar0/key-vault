@@ -72,3 +72,15 @@ func (r *PostgresWorkspaceRepository) GetByUserID(ctx context.Context, userID st
 	}
 	return workspaces, nil
 }
+
+func (r *PostgresWorkspaceRepository) Update(ctx context.Context, workspace *models.Workspace) error {
+	query := rebindWorkspace(`UPDATE workspaces SET workspace_name = $1 WHERE id = $2`)
+	_, err := r.db.ExecContext(ctx, query, workspace.WorkspaceName, workspace.ID)
+	return err
+}
+
+func (r *PostgresWorkspaceRepository) Delete(ctx context.Context, id string) error {
+	query := rebindWorkspace(`DELETE FROM workspaces WHERE id = $1`)
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}

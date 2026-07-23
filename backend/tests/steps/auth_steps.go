@@ -2,6 +2,7 @@ package steps
 
 import (
 	"fmt"
+	"os"
 
 	"key-vault/backend/internal/db"
 
@@ -14,7 +15,12 @@ func RegisterAuthSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		password := table.Rows[1].Cells[1].Value
 
 		tc.CleanDB()
-		err := db.MigrateAndSeed(tc.DB, email, password)
+		var err error
+		if os.Getenv("DB_DRIVER") == "sqlite" {
+			err = db.MigrateAndSeedSQLite(tc.DB, email, password)
+		} else {
+			err = db.MigrateAndSeed(tc.DB, email, password)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to run migrations & seeds: %w", err)
 		}

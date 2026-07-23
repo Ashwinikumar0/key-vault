@@ -20,6 +20,7 @@ type TestContext struct {
 	TempUserEmail       string
 	TempUserPassword    string
 	CreatedWorkspaceID  string
+	CreatedSecretID     string
 }
 
 // PerformRequest builds and routes an HTTP request simulating client-server exchanges.

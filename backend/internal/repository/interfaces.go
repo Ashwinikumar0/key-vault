@@ -11,15 +11,22 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*models.User, error)
 	GetAll(ctx context.Context) ([]*models.User, error)
 	GetStats(ctx context.Context) ([]*models.UserStat, error)
+	DeleteUserCascade(ctx context.Context, id string) error
 }
 
 type WorkspaceRepository interface {
 	Create(ctx context.Context, workspace *models.Workspace) error
 	GetByID(ctx context.Context, id string) (*models.Workspace, error)
 	GetByUserID(ctx context.Context, userID string) ([]*models.Workspace, error)
+	Update(ctx context.Context, workspace *models.Workspace) error
+	Delete(ctx context.Context, id string) error
 }
 
 type SecretRepository interface {
 	Create(ctx context.Context, secret *models.Secret) error
+	GetByID(ctx context.Context, id string) (*models.Secret, error)
 	GetByWorkspaceID(ctx context.Context, workspaceID string) ([]*models.Secret, error)
+	CountSecrets(ctx context.Context, workspaceID string) (int, error)
+	Update(ctx context.Context, secret *models.Secret) error
+	Delete(ctx context.Context, id string) error
 }

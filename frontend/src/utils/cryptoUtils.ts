@@ -87,7 +87,7 @@ export async function deriveKeys(password: string, email: string): Promise<Deriv
     },
     masterBaseKey,
     { name: "AES-GCM", length: 256 },
-    false, // NOT extractable
+    true, // Extractable so key can be restored during tab session navigation
     ["encrypt", "decrypt"]
   );
 
@@ -95,6 +95,35 @@ export async function deriveKeys(password: string, email: string): Promise<Deriv
     authHash,
     encryptionKey,
   };
+}
+
+/**
+ * Exports a CryptoKey to a Base64 string for tab session storage.
+ */
+export async function exportEncryptionKey(key: CryptoKey): Promise<string> {
+  const crypto = getCrypto();
+  const rawBytes = await crypto.subtle.exportKey("raw", key);
+  return btoa(String.fromCharCode(...new Uint8Array(rawBytes)));
+}
+
+/**
+ * Imports a Base64 string back into an AES-256-GCM CryptoKey.
+ */
+export async function importEncryptionKey(base64Key: string): Promise<CryptoKey> {
+  const crypto = getCrypto();
+  const rawBytes = new Uint8Array(
+    atob(base64Key)
+      .split("")
+      .map((c) => c.charCodeAt(0))
+  );
+
+  return crypto.subtle.importKey(
+    "raw",
+    rawBytes,
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"]
+  );
 }
 
 /**

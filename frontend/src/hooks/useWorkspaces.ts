@@ -17,12 +17,30 @@ export function useWorkspaces() {
     },
   });
 
+  const updateWorkspaceMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => api.workspaces.update(id, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+    },
+  });
+
+  const deleteWorkspaceMutation = useMutation({
+    mutationFn: (id: string) => api.workspaces.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+    },
+  });
+
   return {
     workspaces: workspacesQuery.data,
     isLoading: workspacesQuery.isLoading,
-    createWorkspace: createWorkspaceMutation.mutateAsync, // Can be awaited directly in component
+    createWorkspace: createWorkspaceMutation.mutateAsync,
     isCreating: createWorkspaceMutation.isPending,
-    error: workspacesQuery.error || createWorkspaceMutation.error,
+    updateWorkspace: updateWorkspaceMutation.mutateAsync,
+    isUpdating: updateWorkspaceMutation.isPending,
+    deleteWorkspace: deleteWorkspaceMutation.mutateAsync,
+    isDeleting: deleteWorkspaceMutation.isPending,
+    error: workspacesQuery.error || createWorkspaceMutation.error || updateWorkspaceMutation.error || deleteWorkspaceMutation.error,
     resetStatus: createWorkspaceMutation.reset,
   };
 }

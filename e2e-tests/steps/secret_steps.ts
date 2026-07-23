@@ -3,7 +3,7 @@ import { expect } from "@playwright/test";
 import { CustomWorld } from "./world";
 import * as fs from "fs";
 import * as path from "path";
-import { SecretPageHelper, FieldInput } from "../helpers/page_helpers";
+import { SecretPageHelper, AuthPageHelper, FieldInput } from "../helpers/page_helpers";
 
 interface ImportField {
   name: string;
@@ -161,4 +161,24 @@ Then("I should see an alert dialog containing {string}", async function (this: C
   // Wait up to 5 seconds for alert notification messages
   await this.page.waitForTimeout(1000);
   expect(this.latestDialogMessage).toContain(expectedMsg);
+});
+
+When("I edit secret {string} to new title {string}", async function (this: CustomWorld, oldName: string, newName: string) {
+  const sec = new SecretPageHelper(this.page);
+  await sec.editSecret(oldName, newName);
+});
+
+When("I delete the secret {string}", async function (this: CustomWorld, name: string) {
+  const sec = new SecretPageHelper(this.page);
+  await sec.deleteSecret(name);
+});
+
+Then("I should not see a secret card for {string}", async function (this: CustomWorld, name: string) {
+  const sec = new SecretPageHelper(this.page);
+  await sec.verifySecretCardNotVisible(name);
+});
+
+When("I request user account and data deletion", async function (this: CustomWorld) {
+  const auth = new AuthPageHelper(this.page);
+  await auth.deleteAccount();
 });

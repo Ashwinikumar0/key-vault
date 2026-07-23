@@ -3,10 +3,12 @@ Feature: Administrative Operations
   I want to create user accounts and view metrics
   To manage the vault workspace access
 
-  Scenario: Admin successfully creates standard user account
+  Background:
     Given a clean test database with seeded admin:
       | email            | password         |
       | admin@test.local | adminpassword123 |
+
+  Scenario: Admin successfully creates standard user account
     And I login with credentials:
       | email            | password         |
       | admin@test.local | adminpassword123 |
@@ -17,18 +19,12 @@ Feature: Administrative Operations
     And the user temporary password should be returned
 
   Scenario: Non-admin fails to fetch database statistics
-    Given a clean test database with seeded admin:
-      | email            | password         |
-      | admin@test.local | adminpassword123 |
     And an authenticated user "developer@test.local" is created by admin
     And I login as "developer@test.local"
     When I request database statistics
     Then the response status code should be 403
 
   Scenario: Admin successfully views database statistics reflecting metrics
-    Given a clean test database with seeded admin:
-      | email            | password         |
-      | admin@test.local | adminpassword123 |
     And an authenticated user "developer@test.local" is created by admin
     And I login as "developer@test.local"
     And I create a workspace named "Production Secrets"

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { decryptData } from "../utils/cryptoUtils";
 import type { SecretResponse } from "../utils/api";
+import { Modal } from "./Modal";
 import {
   Key,
   Lock,
@@ -13,7 +14,9 @@ import {
   User,
   Database,
   FileCheck,
-  StickyNote
+  StickyNote,
+  Trash2,
+  Pencil
 } from "lucide-react";
 
 interface CustomField {
@@ -27,15 +30,18 @@ type SecretItemType = "login" | "connection" | "api" | "certificate" | "note";
 interface SecretCardProps {
   secret: SecretResponse;
   encryptionKey: CryptoKey;
+  onEdit?: (secret: SecretResponse) => void;
+  onDelete?: (secretId: string) => void;
 }
 
-export const SecretCard: React.FC<SecretCardProps> = ({ secret, encryptionKey }) => {
+export const SecretCard: React.FC<SecretCardProps> = ({ secret, encryptionKey, onEdit, onDelete }) => {
   const [decryptedFields, setDecryptedFields] = useState<CustomField[] | null>(null);
   const [itemTypeState, setItemTypeState] = useState<SecretItemType>("api");
   const [isDecrypted, setIsDecrypted] = useState(false);
   const [revealedFields, setRevealedFields] = useState<Set<number>>(new Set());
   const [copiedFieldIdx, setCopiedFieldIdx] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   const handleDecryptCard = async () => {
@@ -131,11 +137,68 @@ export const SecretCard: React.FC<SecretCardProps> = ({ secret, encryptionKey })
             {secret.secret_name}
           </h3>
         </div>
-        {isDecrypted && (
-          <button className="icon-btn" onClick={handleDecryptCard} title="Lock credentials from memory">
-            <Lock size={16} style={{ color: "var(--success)" }} />
-          </button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          {isDecrypted && (
+            <button className="icon-btn" onClick={handleDecryptCard} title="Lock credentials from memory">
+              <Lock size={16} style={{ color: "var(--success)" }} />
+            </button>
+          )}
+          {onEdit && (
+            <button
+              className="icon-btn"
+              onClick={() => onEdit(secret)}
+              title="Edit Secret"
+              data-testid="edit-secret-button"
+            >
+              <Pencil size={16} />
+            </button>
+          )}
+          {onDelete && (
+            <>
+              <button
+                className="icon-btn"
+                onClick={() => setIsDeleteConfirmOpen(true)}
+                title="Delete Secret"
+                data-testid="delete-secret-button"
+                style={{ color: "#ef4444" }}
+              >
+                <Trash2 size={16} />
+              </button>
+
+              <Modal
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => setIsDeleteConfirmOpen(false)}
+                title="Delete Secret"
+              >
+                <p style={{ marginBottom: "20px", fontSize: "14px", color: "var(--text-muted)" }}>
+                  Are you sure you want to delete credential <strong>"{secret.secret_name}"</strong>? This action cannot be undone.
+                </p>
+
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setIsDeleteConfirmOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setIsDeleteConfirmOpen(false);
+                      onDelete(secret.id);
+                    }}
+                    style={{ background: "var(--danger)", color: "#fff" }}
+                    data-testid="confirm-delete-secret"
+                  >
+                    Delete Secret
+                  </button>
+                </div>
+              </Modal>
+            </>
+          )}
+        </div>
       </div>
 
       {error && (

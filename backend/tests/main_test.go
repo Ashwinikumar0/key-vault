@@ -51,4 +51,5 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 	steps.RegisterWorkspaceSteps(ctx, tc)
 	steps.RegisterSecretSteps(ctx, tc)
 	steps.RegisterAdminSteps(ctx, tc)
+	steps.RegisterUserSteps(ctx, tc)
 }

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"os"
 	"regexp"
 
@@ -57,4 +58,39 @@ func (r *PostgresSecretRepository) GetByWorkspaceID(ctx context.Context, workspa
 		secrets = append(secrets, &s)
 	}
 	return secrets, nil
+}
+
+func (r *PostgresSecretRepository) GetByID(ctx context.Context, id string) (*models.Secret, error) {
+	query := rebindSecret(`SELECT id, workspace_id, secret_name, encrypted_value, iv, created_at FROM secrets WHERE id = $1`)
+	var s models.Secret
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&s.ID, &s.WorkspaceID, &s.SecretName, &s.EncryptedValue, &s.IV, &s.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *PostgresSecretRepository) CountSecrets(ctx context.Context, workspaceID string) (int, error) {
+	query := rebindSecret(`SELECT COUNT(*) FROM secrets WHERE workspace_id = $1`)
+	var count int
+	err := r.db.QueryRowContext(ctx, query, workspaceID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (r *PostgresSecretRepository) Update(ctx context.Context, secret *models.Secret) error {
+	query := rebindSecret(`UPDATE secrets SET secret_name = $1, encrypted_value = $2, iv = $3 WHERE id = $4`)
+	_, err := r.db.ExecContext(ctx, query, secret.SecretName, secret.EncryptedValue, secret.IV, secret.ID)
+	return err
+}
+
+func (r *PostgresSecretRepository) Delete(ctx context.Context, id string) error {
+	query := rebindSecret(`DELETE FROM secrets WHERE id = $1`)
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
 }

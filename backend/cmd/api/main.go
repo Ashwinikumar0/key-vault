@@ -1,28 +1,23 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
-	"key-vault/backend/internal/auth"
+	"key-vault/backend/internal/config"
 	"key-vault/backend/internal/db"
 	"key-vault/backend/internal/handlers"
 	"key-vault/backend/internal/logger"
-	"key-vault/backend/internal/models"
 	"key-vault/backend/internal/repository"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/rs/cors"
+	"key-vault/backend/internal/router"
 )
 
 func main() {
@@ -33,34 +28,20 @@ func main() {
 	}
 	log.SetOutput(logWriter)
 
-	// Load local .env configuration if present
-	loadEnv()
-
 	log.Println("Starting Key Vault API Server...")
 
-	// 1. Load Configurations from Env
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	dbPass := getEnv("DB_PASSWORD", "localpassword123")
-	dbName := getEnv("DB_NAME", "keyvault")
-	dbSSL := getEnv("DB_SSLMODE", "disable")
-
-	jwtSecret := getEnv("JWT_SECRET", "key-vault-super-secure-dev-jwt-secret-key-123456")
-	port := getEnv("PORT", "8080")
-	allowedOriginsEnv := getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
-	allowedOrigins := strings.Split(allowedOriginsEnv, ",")
-
-	adminEmail := getEnv("DEFAULT_ADMIN_EMAIL", "admin@keyvault.local")
-	adminPassword := getEnv("DEFAULT_ADMIN_PASSWORD", "adminpassword123")
+	// 1. Load Configurations from Env & Config package
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Fatal error loading configuration: %v", err)
+	}
 
 	// 2. Connect to Database
-	dbDriver := getEnv("DB_DRIVER", "postgres")
 	var sqlDB *sql.DB
 	var dbErr error
 
-	if dbDriver == "sqlite" {
-		sqlitePath := getEnv("SQLITE_DB_PATH", "")
+	if cfg.DBDriver == "sqlite" {
+		sqlitePath := cfg.SQLiteDBPath
 		if sqlitePath == "" {
 			userDir, err := os.UserConfigDir()
 			if err != nil {
@@ -75,14 +56,14 @@ func main() {
 		}
 	} else {
 		dbCfg := db.Config{
-			Host:     dbHost,
-			Port:     dbPort,
-			User:     dbUser,
-			Password: dbPass,
-			DBName:   dbName,
-			SSLMode:  dbSSL,
+			Host:     cfg.DBHost,
+			Port:     fmt.Sprintf("%d", cfg.DBPort),
+			User:     cfg.DBUser,
+			Password: cfg.DBPassword,
+			DBName:   cfg.DBName,
+			SSLMode:  "disable",
 		}
-		log.Printf("Connecting to PostgreSQL database at %s:%s...", dbHost, dbPort)
+		log.Printf("Connecting to PostgreSQL database at %s:%d...", cfg.DBHost, cfg.DBPort)
 		sqlDB, dbErr = db.Connect(dbCfg)
 		if dbErr != nil {
 			log.Fatalf("Fatal error connecting to PostgreSQL: %v", dbErr)
@@ -90,89 +71,46 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	// 3. Migrate and Seed
+	// 3. Migrate and Seed Database
 	log.Println("Running database migrations and seeds...")
-	if dbDriver == "sqlite" {
-		err = db.MigrateAndSeedSQLite(sqlDB, adminEmail, adminPassword)
+	if cfg.DBDriver == "sqlite" {
+		err = db.MigrateAndSeedSQLite(sqlDB, cfg.DefaultAdminEmail, cfg.DefaultAdminPassword)
 	} else {
-		err = db.MigrateAndSeed(sqlDB, adminEmail, adminPassword)
+		err = db.MigrateAndSeed(sqlDB, cfg.DefaultAdminEmail, cfg.DefaultAdminPassword)
 	}
 	if err != nil {
 		log.Fatalf("Fatal error running migrations: %v", err)
 	}
 	log.Println("Database setup complete.")
 
-	// 4. Initialize Repositories (SOLID - Dependency Injection)
+	// 4. Initialize Repositories (Dependency Injection)
 	userRepo := repository.NewPostgresUserRepository(sqlDB)
 	workspaceRepo := repository.NewPostgresWorkspaceRepository(sqlDB)
 	secretRepo := repository.NewPostgresSecretRepository(sqlDB)
 
-	// 5. Initialize Handlers (SOLID - Dependency Injection)
-	authHandler := handlers.NewAuthHandler(userRepo, jwtSecret)
+	// 5. Initialize Handlers (Dependency Injection)
+	authHandler := handlers.NewAuthHandler(userRepo, cfg.JWTSecret)
 	adminHandler := handlers.NewAdminHandler(userRepo)
-	workspaceHandler := handlers.NewWorkspaceHandler(workspaceRepo)
+	workspaceHandler := handlers.NewWorkspaceHandler(workspaceRepo, secretRepo)
 	secretHandler := handlers.NewSecretHandler(secretRepo, workspaceRepo)
+	userHandler := handlers.NewUserHandler(userRepo)
 
-	// 6. Setup Router
-	r := chi.NewRouter()
-
-	// Core middlewares
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-
-	// CORS Setup
-	c := cors.New(cors.Options{
-		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	})
-	r.Use(c.Handler)
-
-	// API Routing Layout
-	r.Route("/api", func(r chi.Router) {
-		// Public routes
-		r.Post("/auth/login", authHandler.Login)
-		r.Post("/auth/logout", authHandler.Logout)
-
-		// Authenticated routes
-		r.Group(func(r chi.Router) {
-			r.Use(auth.AuthMiddleware(jwtSecret))
-
-			r.Get("/auth/me", authHandler.Me)
-
-			// Workspaces
-			r.Post("/workspaces", workspaceHandler.CreateWorkspace)
-			r.Get("/workspaces", workspaceHandler.ListWorkspaces)
-
-			// Secrets
-			r.Post("/secrets", secretHandler.CreateSecret)
-			r.Get("/secrets/{workspaceID}", secretHandler.ListSecrets)
-
-			// Admin-only routes
-			r.Group(func(r chi.Router) {
-				r.Use(auth.RequireRole(models.RoleAdmin))
-
-				r.Post("/admin/users", adminHandler.CreateUser)
-				r.Get("/admin/stats", adminHandler.GetStats)
-				r.Get("/admin/users", adminHandler.ListUsers)
-			})
-		})
-	})
-
-	// Health check route
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"healthy"}`))
+	// 6. Setup Modular Router
+	r := router.Setup(router.RouterOptions{
+		Config:           cfg,
+		UserRepo:         userRepo,
+		WorkspaceRepo:    workspaceRepo,
+		SecretRepo:       secretRepo,
+		AuthHandler:      authHandler,
+		AdminHandler:     adminHandler,
+		WorkspaceHandler: workspaceHandler,
+		SecretHandler:    secretHandler,
+		UserHandler:      userHandler,
 	})
 
 	// 7. Start HTTP Server with Graceful Shutdown
 	srv := &http.Server{
-		Addr:         ":" + port,
+		Addr:         fmt.Sprintf(":%d", cfg.Port),
 		Handler:      r,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
@@ -180,7 +118,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("API Server is running on port %s", port)
+		log.Printf("API Server is running on port %d", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("ListenAndServe failed: %v", err)
 		}
@@ -200,39 +138,4 @@ func main() {
 	}
 
 	log.Println("API Server stopped.")
-}
-
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
-}
-
-func loadEnv() {
-	file, err := os.Open(".env")
-	if err != nil {
-		return // Ignore if .env is missing (e.g. in docker prod)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			// Strip surrounding quotes if present
-			if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
-				value = value[1 : len(value)-1]
-			} else if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
-				value = value[1 : len(value)-1]
-			}
-			os.Setenv(key, value)
-		}
-	}
 }

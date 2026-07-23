@@ -80,6 +80,11 @@ export class AuthPageHelper extends BasePage {
   async logout(): Promise<void> {
     await this.page.click("button:has-text('Logout')");
   }
+
+  async deleteAccount(): Promise<void> {
+    await this.page.click("button:has-text('Delete My Data & Account')");
+    await this.page.click("button:has-text('Permanently Delete My Data')");
+  }
 }
 
 // ==========================================
@@ -88,6 +93,9 @@ export class AuthPageHelper extends BasePage {
 
 export class AdminPageHelper extends BasePage {
   async createUser(email: string, role: string): Promise<void> {
+    if (!this.page.url().includes("/admin")) {
+      await this.click("admin-panel-link");
+    }
     await this.click("create-user-trigger");
     await this.fill("user-email-input", email);
     await this.select("user-role-select", role);
@@ -129,6 +137,29 @@ export class WorkspacePageHelper extends BasePage {
     const selector = `[data-testid='workspace-item']:has-text('${name}')`;
     await this.page.click(selector);
   }
+
+  async renameWorkspace(oldName: string, newName: string): Promise<void> {
+    const item = this.page.locator("[data-testid='workspace-item']", { hasText: oldName });
+    const row = this.page.locator("div", { has: item }).first();
+    await row.locator("[data-testid='rename-workspace-trigger']").click();
+    await this.fill("rename-workspace-name-input", newName);
+    await this.click("rename-workspace-submit");
+  }
+
+  async clickDeleteWorkspace(name: string): Promise<void> {
+    const item = this.page.locator("[data-testid='workspace-item']", { hasText: name });
+    const row = this.page.locator("div", { has: item }).first();
+    await row.locator("[data-testid='delete-workspace-trigger']").click();
+  }
+
+  async confirmDeleteWorkspace(): Promise<void> {
+    await this.click("confirm-delete-workspace");
+  }
+
+  async verifyCannotDeleteWorkspaceModal(): Promise<void> {
+    await expect(this.page.locator("text=Cannot Delete Workspace")).toBeVisible();
+    await this.page.click("button:has-text('Got It')");
+  }
 }
 
 // ==========================================
@@ -146,6 +177,16 @@ export class SecretPageHelper extends BasePage {
     await this.click("add-secret-trigger");
     await this.fill("secret-name-input", secretName);
     await this.select("item-type-select", templateType);
+
+    // Remove any extra default template field rows if count > fields.length
+    while ((await this.locator("field-name-input").count()) > fields.length) {
+      const removeBtns = this.locator("field-remove");
+      if ((await removeBtns.count()) > 0) {
+        await removeBtns.last().click();
+      } else {
+        break;
+      }
+    }
 
     for (let idx = 0; idx < fields.length; idx++) {
       const field = fields[idx];
@@ -176,9 +217,27 @@ export class SecretPageHelper extends BasePage {
     await this.click("secret-submit");
   }
 
+  async editSecret(secretName: string, newName: string): Promise<void> {
+    const card = this.page.locator("[data-testid='secret-card']", { hasText: secretName });
+    await card.locator("[data-testid='edit-secret-button']").click();
+    await this.fill("edit-secret-name-input", newName);
+    await this.click("save-edited-secret-button");
+  }
+
+  async deleteSecret(secretName: string): Promise<void> {
+    const card = this.page.locator("[data-testid='secret-card']", { hasText: secretName });
+    await card.locator("[data-testid='delete-secret-button']").click();
+    await this.click("confirm-delete-secret");
+  }
+
   async verifySecretCardVisible(secretName: string): Promise<void> {
     const selector = `[data-testid='secret-card']:has-text('${secretName}')`;
     await this.page.waitForSelector(selector, { state: "visible" });
+  }
+
+  async verifySecretCardNotVisible(secretName: string): Promise<void> {
+    const selector = `[data-testid='secret-card']:has-text('${secretName}')`;
+    await expect(this.page.locator(selector)).toHaveCount(0);
   }
 
   async decryptSecretCard(secretName: string): Promise<void> {

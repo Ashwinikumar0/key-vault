@@ -7,14 +7,14 @@ import (
 	"os"
 	"testing"
 
-	"key-vault/backend/internal/auth"
+	"key-vault/backend/internal/config"
 	"key-vault/backend/internal/db"
 	"key-vault/backend/internal/handlers"
-	"key-vault/backend/internal/models"
 	"key-vault/backend/internal/repository"
+	"key-vault/backend/internal/router"
 
-	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
+	_ "modernc.org/sqlite"
 )
 
 var (
@@ -33,6 +33,8 @@ func TestMain(m *testing.M) {
 	log.Println("Setting up BDD Godog Integration Test Environment...")
 
 	// 1. Setup Test DB Configuration
+	driver := getEnv("DB_DRIVER", "sqlite")
+	os.Setenv("DB_DRIVER", driver)
 	host := getEnv("DB_HOST", "localhost")
 	port := getEnv("DB_PORT", "5433")
 	user := getEnv("DB_USER", "postgres")
@@ -40,74 +42,84 @@ func TestMain(m *testing.M) {
 	dbname := getEnv("DB_NAME", "keyvault_test")
 	ssl := getEnv("DB_SSLMODE", "disable")
 
-	cfg := db.Config{
-		Host:     host,
-		Port:     port,
-		User:     user,
-		Password: pass,
-		DBName:   dbname,
-		SSLMode:  ssl,
-	}
-
-	// 2. Connect
 	var err error
-	testDB, err = db.Connect(cfg)
-	if err != nil {
-		log.Fatalf("Fatal: Failed to connect to test database container: %v", err)
+	if driver == "sqlite" {
+		sqlitePath := getEnv("SQLITE_DB_PATH", "./keyvault_test.db")
+		log.Printf("Connecting BDD tests to SQLite database at: %s...", sqlitePath)
+		testDB, err = db.ConnectSQLite(sqlitePath)
+		if err != nil {
+			log.Fatalf("Fatal: Failed to connect to test SQLite database: %v", err)
+		}
+	} else {
+		cfg := db.Config{
+			Host:     host,
+			Port:     port,
+			User:     user,
+			Password: pass,
+			DBName:   dbname,
+			SSLMode:  ssl,
+		}
+		log.Printf("Connecting BDD tests to PostgreSQL database at %s:%s...", host, port)
+		testDB, err = db.Connect(cfg)
+		if err != nil {
+			// Fallback to SQLite if PostgreSQL test container is unavailable
+			sqlitePath := "./keyvault_test.db"
+			log.Printf("PostgreSQL container unavailable (%v). Falling back to SQLite at: %s...", err, sqlitePath)
+			os.Setenv("DB_DRIVER", "sqlite")
+			driver = "sqlite"
+			testDB, err = db.ConnectSQLite(sqlitePath)
+			if err != nil {
+				log.Fatalf("Fatal: Failed to connect to fallback SQLite database: %v", err)
+			}
+		}
 	}
 
-	// 3. Clean environment
+	// 2. Clean environment
 	cleanDB()
 
-	// 4. Run Migrations & Seed Admin
+	// 3. Run Migrations & Seed Admin
 	adminEmail := getEnv("DEFAULT_ADMIN_EMAIL", "admin@test.local")
 	adminPassword := getEnv("DEFAULT_ADMIN_PASSWORD", "adminpassword123")
-	err = db.MigrateAndSeed(testDB, adminEmail, adminPassword)
+
+	if driver == "sqlite" || os.Getenv("DB_DRIVER") == "sqlite" {
+		err = db.MigrateAndSeedSQLite(testDB, adminEmail, adminPassword)
+	} else {
+		err = db.MigrateAndSeed(testDB, adminEmail, adminPassword)
+	}
 	if err != nil {
 		log.Fatalf("Fatal: Failed to execute test migrations: %v", err)
 	}
 
 	jwtSecretKey = getEnv("JWT_SECRET", "test-secret-key-12345678901234567890")
-	adminAuthHash = db.DeriveAuthHash(adminPassword, adminEmail)
 
-	// 5. Initialize repositories and router handlers
+	// 4. Initialize Repositories (Dependency Injection)
 	userRepo := repository.NewPostgresUserRepository(testDB)
 	workspaceRepo := repository.NewPostgresWorkspaceRepository(testDB)
 	secretRepo := repository.NewPostgresSecretRepository(testDB)
 
 	authHandler := handlers.NewAuthHandler(userRepo, jwtSecretKey)
 	adminHandler := handlers.NewAdminHandler(userRepo)
-	workspaceHandler := handlers.NewWorkspaceHandler(workspaceRepo)
+	workspaceHandler := handlers.NewWorkspaceHandler(workspaceRepo, secretRepo)
 	secretHandler := handlers.NewSecretHandler(secretRepo, workspaceRepo)
+	userHandler := handlers.NewUserHandler(userRepo)
 
-	r := chi.NewRouter()
-	r.Route("/api", func(r chi.Router) {
-		r.Post("/auth/login", authHandler.Login)
-		r.Post("/auth/logout", authHandler.Logout)
+	// 5. Setup Router
+	cfg := &config.Config{
+		JWTSecret:          jwtSecretKey,
+		CORSAllowedOrigins: []string{"*"},
+	}
 
-		r.Group(func(r chi.Router) {
-			r.Use(auth.AuthMiddleware(jwtSecretKey))
-			r.Get("/auth/me", authHandler.Me)
-
-			// Workspaces
-			r.Post("/workspaces", workspaceHandler.CreateWorkspace)
-			r.Get("/workspaces", workspaceHandler.ListWorkspaces)
-
-			// Secrets
-			r.Post("/secrets", secretHandler.CreateSecret)
-			r.Get("/secrets/{workspaceID}", secretHandler.ListSecrets)
-
-			// Admin Operations
-			r.Group(func(r chi.Router) {
-				r.Use(auth.RequireRole(models.RoleAdmin))
-				r.Post("/admin/users", adminHandler.CreateUser)
-				r.Get("/admin/stats", adminHandler.GetStats)
-				r.Get("/admin/users", adminHandler.ListUsers)
-			})
-		})
+	testRouter = router.Setup(router.RouterOptions{
+		Config:           cfg,
+		UserRepo:         userRepo,
+		WorkspaceRepo:    workspaceRepo,
+		SecretRepo:       secretRepo,
+		AuthHandler:      authHandler,
+		AdminHandler:     adminHandler,
+		WorkspaceHandler: workspaceHandler,
+		SecretHandler:    secretHandler,
+		UserHandler:      userHandler,
 	})
-
-	testRouter = r
 
 	// 6. Execute Tests
 	code := m.Run()
@@ -116,6 +128,9 @@ func TestMain(m *testing.M) {
 	log.Println("Teardown BDD integration test database...")
 	cleanDB()
 	testDB.Close()
+	if driver == "sqlite" || os.Getenv("DB_DRIVER") == "sqlite" {
+		os.Remove("./keyvault_test.db")
+	}
 
 	os.Exit(code)
 }
@@ -124,7 +139,13 @@ func cleanDB() {
 	if testDB == nil {
 		return
 	}
-	_, _ = testDB.Exec("DROP TABLE IF EXISTS secrets, workspaces, users CASCADE")
+	if os.Getenv("DB_DRIVER") == "sqlite" {
+		_, _ = testDB.Exec("DELETE FROM secrets;")
+		_, _ = testDB.Exec("DELETE FROM workspaces;")
+		_, _ = testDB.Exec("DELETE FROM users;")
+	} else {
+		_, _ = testDB.Exec("DROP TABLE IF EXISTS secrets, workspaces, users CASCADE")
+	}
 }
 
 func getEnv(key, fallback string) string {
