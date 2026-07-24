@@ -1,7 +1,7 @@
 {
   "name": "key-vault-desktop",
   "version": "1.0.0",
-  "description": "Zero-Knowledge E2E Encrypted Key & Credential Manager Desktop Client",
+  "description": "Zero-Knowledge E2E Encrypted Key & Credential Manager Windows Desktop App",
   "main": "dist-electron/main.js",
   "scripts": {
     "compile": "tsc",
@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "com.keyvault.desktop",
-    "productName": "KeyVault",
+    "productName": "KeyVault Windows Desktop App",
     "directories": {
       "output": "dist-packaged"
     },

@@ -1,4 +1,4 @@
-# KeyVault Desktop Client (Windows Wrapper)
+# KeyVault Windows Desktop App
 
 A self-contained, offline-first Windows desktop client for KeyVault. It embeds the Go API backend as a background sidecar process and uses a local SQLite database for zero-overhead, completely local zero-knowledge credential management.
 
