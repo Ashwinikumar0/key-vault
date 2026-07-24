@@ -16,7 +16,7 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: "KeyVault",
+    title: "KeyVault Windows Desktop App",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
