@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { User } from "../../domain/types";
-import { deriveAuthHash, deriveEncryptionKey } from "../../domain/crypto";
-import { api } from "../../data/api";
+import { User } from "@/domain/types";
+import { deriveKeys } from "@/domain/crypto";
+import { authApi } from "@/data/api/authApi";
 
 interface AuthContextType {
   user: User | null;
@@ -21,7 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshUser = async () => {
     try {
-      const u = await api.auth.me();
+      const u = await authApi.me();
       setUser(u);
     } catch {
       setUser(null);
@@ -38,9 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, passwordRaw: string) => {
     setIsLoading(true);
     try {
-      const authHash = await deriveAuthHash(passwordRaw, email);
-      const derivedKey = await deriveEncryptionKey(passwordRaw, email);
-      const loggedUser = await api.auth.login(email, authHash);
+      const { authHash, encryptionKey: derivedKey } = await deriveKeys(passwordRaw, email);
+      const loggedUser = await authApi.login(email, authHash);
 
       setUser(loggedUser);
       setEncryptionKey(derivedKey);
@@ -52,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
-      await api.auth.logout();
+      await authApi.logout();
     } catch (err) {
       console.warn("Logout request failed:", err);
     } finally {

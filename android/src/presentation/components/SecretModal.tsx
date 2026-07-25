@@ -10,10 +10,10 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { X, Plus, Trash2 } from "lucide-react-native";
-import { Secret, CustomField, SecretItemType, SecretPayload } from "../../domain/types";
-import { encryptData, decryptData } from "../../domain/crypto";
-import { useAuth } from "../context/AuthContext";
-import { theme } from "../theme";
+import { Secret, CustomField, SecretItemType, SecretPayload } from "@/domain/types";
+import { encryptData, decryptData } from "@/domain/crypto";
+import { useAuth } from "@/presentation/context/AuthContext";
+import { theme } from "@/presentation/theme";
 
 interface SecretModalProps {
   visible: boolean;
@@ -64,7 +64,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
       ]);
       setErrorText(null);
     }
-  }, [secretToEdit, visible]);
+  }, [secretToEdit, visible, encryptionKey]);
 
   const handleAddField = () => {
     setFields([...fields, { name: "", value: "", type: "secret" }]);
@@ -112,6 +112,8 @@ export const SecretModal: React.FC<SecretModalProps> = ({
       setIsSaving(false);
     }
   };
+
+  if (!visible) return null;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>

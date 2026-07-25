@@ -1,21 +1,28 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from "react-native";
-import { Plus, Search, FolderPlus, KeyRound } from "lucide-react-native";
-import { Workspace, Secret } from "../../domain/types";
-import { api } from "../../data/api";
-import { WorkspaceSelector } from "../components/WorkspaceSelector";
-import { SecretCard } from "../components/SecretCard";
-import { SecretModal } from "../components/SecretModal";
-import { WorkspaceModal } from "../components/WorkspaceModal";
-import { DeleteModal } from "../components/DeleteModal";
-import { theme } from "../theme";
+import { Plus, KeyRound } from "lucide-react-native";
+import { Workspace, Secret } from "@/domain/types";
+import { useVault } from "@/presentation/hooks/useVault";
+import { WorkspaceSelector } from "@/presentation/components/WorkspaceSelector";
+import { SecretCard } from "@/presentation/components/SecretCard";
+import { SecretModal } from "@/presentation/components/SecretModal";
+import { WorkspaceModal } from "@/presentation/components/WorkspaceModal";
+import { DeleteModal } from "@/presentation/components/DeleteModal";
+import { theme } from "@/presentation/theme";
 
-export const DashboardScreen: React.FC<{ onOpenDeleteAccount: () => void }> = ({ onOpenDeleteAccount }) => {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
-  const [secrets, setSecrets] = useState<Secret[]>([]);
-  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState<boolean>(true);
-  const [isLoadingSecrets, setIsLoadingSecrets] = useState<boolean>(false);
+export const DashboardScreen: React.FC<{ onOpenDeleteAccount: () => void }> = () => {
+  const {
+    workspaces,
+    selectedWorkspaceId,
+    setSelectedWorkspaceId,
+    secrets,
+    isLoadingSecrets,
+    activeWorkspace,
+    saveWorkspace,
+    saveSecret,
+    deleteWorkspace,
+    deleteSecret,
+  } = useVault();
 
   // Modals state
   const [isSecretModalOpen, setIsSecretModalOpen] = useState<boolean>(false);
@@ -31,72 +38,7 @@ export const DashboardScreen: React.FC<{ onOpenDeleteAccount: () => void }> = ({
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
-  const loadWorkspaces = async () => {
-    setIsLoadingWorkspaces(true);
-    try {
-      const data = await api.workspaces.list();
-      setWorkspaces(data);
-      if (data.length > 0) {
-        if (!selectedWorkspaceId || !data.some((w) => w.id === selectedWorkspaceId)) {
-          setSelectedWorkspaceId(data[0].id);
-        }
-      } else {
-        setSelectedWorkspaceId(null);
-        setSecrets([]);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch workspaces:", err);
-    } finally {
-      setIsLoadingWorkspaces(false);
-    }
-  };
-
-  const loadSecrets = async (wsId: string) => {
-    setIsLoadingSecrets(true);
-    try {
-      const data = await api.secrets.list(wsId);
-      setSecrets(data);
-    } catch (err) {
-      console.warn("Failed to fetch secrets:", err);
-      setSecrets([]);
-    } finally {
-      setIsLoadingSecrets(false);
-    }
-  };
-
-  useEffect(() => {
-    loadWorkspaces();
-  }, []);
-
-  useEffect(() => {
-    if (selectedWorkspaceId) {
-      loadSecrets(selectedWorkspaceId);
-    }
-  }, [selectedWorkspaceId]);
-
-  // Handlers
-  const handleSaveWorkspace = async (name: string, renameId?: string) => {
-    if (renameId) {
-      await api.workspaces.update(renameId, name);
-    } else {
-      const created = await api.workspaces.create(name);
-      setSelectedWorkspaceId(created.id);
-    }
-    await loadWorkspaces();
-  };
-
-  const handleSaveSecret = async (name: string, encryptedValue: string, iv: string, editId?: string) => {
-    if (!selectedWorkspaceId) return;
-    if (editId) {
-      await api.secrets.update(editId, name, encryptedValue, iv);
-    } else {
-      await api.secrets.create(selectedWorkspaceId, name, encryptedValue, iv);
-    }
-    await loadSecrets(selectedWorkspaceId);
-  };
-
   const handleDeleteWorkspaceClick = (ws: Workspace) => {
-    // If workspace has secrets, show warning modal blocking deletion
     if (secrets.length > 0 && selectedWorkspaceId === ws.id) {
       setDeleteTarget({
         type: "workspace",
@@ -116,14 +58,11 @@ export const DashboardScreen: React.FC<{ onOpenDeleteAccount: () => void }> = ({
     setIsDeleting(true);
     try {
       if (deleteTarget.type === "workspace") {
-        await api.workspaces.delete(deleteTarget.item.id);
-        setDeleteTarget(null);
-        await loadWorkspaces();
+        await deleteWorkspace(deleteTarget.item.id);
       } else {
-        await api.secrets.delete(deleteTarget.item.id);
-        setDeleteTarget(null);
-        if (selectedWorkspaceId) await loadSecrets(selectedWorkspaceId);
+        await deleteSecret(deleteTarget.item.id);
       }
+      setDeleteTarget(null);
     } catch (err: any) {
       console.warn("Delete action error:", err);
     } finally {
@@ -131,12 +70,10 @@ export const DashboardScreen: React.FC<{ onOpenDeleteAccount: () => void }> = ({
     }
   };
 
-  const activeWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
-
   return (
     <View style={styles.container}>
       <WorkspaceSelector
-        workspaces={workspaces}
+        workspaces={workspaces || []}
         selectedWorkspaceId={selectedWorkspaceId}
         onSelectWorkspace={setSelectedWorkspaceId}
         onCreateWorkspace={() => {
@@ -209,7 +146,7 @@ export const DashboardScreen: React.FC<{ onOpenDeleteAccount: () => void }> = ({
         visible={isWorkspaceModalOpen}
         onClose={() => setIsWorkspaceModalOpen(false)}
         workspaceToRename={renamingWorkspace}
-        onSave={handleSaveWorkspace}
+        onSave={saveWorkspace}
       />
 
       {/* Secret Modal */}
@@ -218,7 +155,7 @@ export const DashboardScreen: React.FC<{ onOpenDeleteAccount: () => void }> = ({
         onClose={() => setIsSecretModalOpen(false)}
         workspaceId={selectedWorkspaceId || ""}
         secretToEdit={editingSecret}
-        onSave={handleSaveSecret}
+        onSave={saveSecret}
       />
 
       {/* Delete Confirmation / Warning Modal */}

@@ -8,7 +8,7 @@ KeyVault is a production-grade, zero-knowledge, end-to-end encrypted key and cre
 
 ### 1. Cryptographic Key Derivation Flow
 
-When you log in, KeyVault uses the browser's native **Web Crypto API** to perform client-side PBKDF2 stretching:
+When you log in, KeyVault uses the browser's native **Web Crypto API** (or Expo Crypto on Mobile) to perform client-side PBKDF2 stretching:
 
 ```
 [ Master Password ] + [ Email as Salt ]
@@ -18,11 +18,11 @@ When you log in, KeyVault uses the browser's native **Web Crypto API** to perfor
          │
          ├──► (1 iteration PBKDF2, salt: "auth-key-salt") ────► [ Auth Hash ] ──► (sent to server to authenticate)
          │
-         └──► (1 iteration PBKDF2, salt: "encryption-key-salt") ──► [ Local AES-256-GCM Key ] (stays in React memory)
+         └──► (1 iteration PBKDF2, salt: "encryption-key-salt") ──► [ Local AES-256-GCM Key ] (stays in client memory)
 ```
 
 1. **Auth Hash**: Sent to the server for session verification. The server hashes this with `bcrypt` before storing it in the database.
-2. **Local AES-256-GCM Key**: Marked as non-extractable. It remains strictly in-memory inside React. If the user refreshes, closes the tab, or remains inactive for **15 minutes**, this key is purged, protecting against memory inspection attacks.
+2. **Local AES-256-GCM Key**: Marked as non-extractable. It remains strictly in-memory inside React. If the user refreshes, closes the app, or remains inactive for **15 minutes**, this key is purged, protecting against memory inspection attacks.
 
 ### 2. Zero-Knowledge Dynamic Custom Fields
 
@@ -44,7 +44,7 @@ When storing credentials:
 
 KeyVault supports exporting and importing your secrets database as structured JSON documents. All processing is executed client-side, preserving the Zero-Knowledge security model.
 
-* **E2E Decrypted Export**: When clicking **Export JSON**, the client-side app decrypts each stored item in the active workspace using your in-memory stretched PBKDF2 key, compile them into a plain text JSON backup file, and triggers a browser download.
+* **E2E Decrypted Export**: When clicking **Export JSON**, the client-side app decrypts each stored item in the active workspace using your in-memory stretched PBKDF2 key, compiles them into a plain text JSON backup file, and triggers a browser download.
 * **Local Encrypted Import**: When selecting a `.json` backup file via **Import JSON**, the client validates the file schema, encrypts each secret's field list using **AES-256-GCM** with a new, random 12-byte IV, and uploads them to the server.
 * **Sample Template**: You can click **Download Template** in the workspace header to download a skeleton import file ([keyvault_import_template.json](file:///c:/_ashwin/Projects/key-vault/keyvault_import_template.json)) mapping structural values:
   ```json
@@ -71,11 +71,17 @@ KeyVault supports exporting and importing your secrets database as structured JS
 - **Migrations**: Automatic database table schema creations and administrator seeding on startup.
 - **Security**: JWT cookie authorization with `HttpOnly` and `SameSite` flags.
 
-### Frontend (React + TypeScript)
+### Frontend Web (React + TypeScript)
 
 - **Routing**: Managed by `@tanstack/react-router` with reactive auth state guards checking contexts on the fly.
-- **React Compiler Aligned**: Formatted for standard React 19 compiler workflows, strictly omitting manual memoization (`useCallback`/`useMemo`).
+- **React Compiler Aligned**: Formatted for standard React 19 compiler workflows, strictly omitting manual memoization.
 - **State & Fetching**: Axios clients with custom interceptors and TanStack Query (`@tanstack/react-query`) for unified cache states.
+
+### Android Mobile Application (`android/`)
+
+- **Framework**: Built with **TypeScript**, **React Native**, and **Expo SDK 52**.
+- **SOLID Architecture**: Modular single-responsibility API layer (`client.ts`, `authApi.ts`, `workspaceApi.ts`, `secretApi.ts`, `userApi.ts`, `adminApi.ts`, `routes.ts`), standalone functions, custom hooks (`useAdmin`, `useVault`), and path aliases (`@/*`, `@domain/*`, `@data/*`, `@presentation/*`).
+- **Mobile Design Aesthetics**: Modern dark glassmorphism design tokens with responsive card field masking, eye toggles, and safe dialog overlays.
 
 ---
 
@@ -86,6 +92,7 @@ KeyVault supports exporting and importing your secrets database as structured JS
 │   ├── cmd/api/              # Entry main.go bootstrapper
 │   ├── internal/
 │   │   ├── auth/             # JWT and RBAC middleware
+│   │   ├── config/           # Environment configuration & CORS
 │   │   ├── db/               # DB pool & migrations setup
 │   │   ├── handlers/         # Controllers / Handlers
 │   │   ├── models/           # Strongly typed database models
@@ -101,6 +108,16 @@ KeyVault supports exporting and importing your secrets database as structured JS
 │   │   ├── utils/            # Client cryptography and Axios clients
 │   │   ├── App.tsx           # Router configs & Query client providers
 │   │   └── main.tsx
+│
+├── android/                  # Android Mobile Client Application Suite
+│   ├── src/
+│   │   ├── domain/           # Cryptography engine & domain types
+│   │   ├── data/             # Modular API services & route constants
+│   │   └── presentation/     # Theme, custom hooks, screens, and components
+│   ├── App.tsx               # SafeArea & Auth Navigation Provider
+│   ├── index.ts              # Root TypeScript entry point
+│   ├── tsconfig.json         # Path alias definitions (@/*)
+│   └── package.json          # Dependencies & mobile scripts
 ```
 
 ---
@@ -129,7 +146,7 @@ Ensure you have `.env` files in both directories:
   DB_NAME=keyvault
   DB_SSLMODE=disable
   JWT_SECRET=key-vault-super-secure-dev-jwt-secret-key-123456
-  CORS_ALLOWED_ORIGINS=http://localhost:5173
+  CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8081,app://,app://index.html
   DEFAULT_ADMIN_EMAIL=admin@keyvault.local
   DEFAULT_ADMIN_PASSWORD=adminpassword123
   ```
@@ -140,7 +157,29 @@ Ensure you have `.env` files in both directories:
   VITE_DEFAULT_ADMIN_PASSWORD=adminpassword123
   ```
 
-### 3. Debug via VS Code (Antigravity IDE)
+### 3. Running the Android Application Suite (`android/`)
+
+From the `android/` directory:
+
+```bash
+cd android
+pnpm install
+```
+
+#### Option A: Browser Mobile Emulator View (Instant — No Setup Required)
+```bash
+pnpm web
+```
+Open `http://localhost:8081` in Chrome/Edge, press `F12` and `Ctrl+Shift+M` to test the mobile handheld app directly on your monitor!
+
+#### Option B: Native Android Virtual Phone
+Start your Android Studio Emulator, then run:
+```bash
+pnpm start:clear
+```
+Then press `a` to launch on the native Android emulator.
+
+### 4. Debug via VS Code (Antigravity IDE)
 
 1. Install **Delve** debugger locally:
    ```bash
@@ -232,4 +271,3 @@ To run the entire E2E test stack (database, backend, frontend, and browser runne
    * **Timestamped Media Runs**: Each run outputs its media assets to a dedicated, timestamped folder to prevent files from getting mixed. Look inside:
      * **Videos**: [e2e-tests/reports/runs/<timestamp>/videos/](file:///c:/_ashwin/Projects/key-vault/e2e-tests/reports/runs) (slowed down to normal human speed with mouse cursors recorded).
      * **Screenshots**: [e2e-tests/reports/runs/<timestamp>/screenshots/](file:///c:/_ashwin/Projects/key-vault/e2e-tests/reports/runs) (showing exact viewports at step failures).
-

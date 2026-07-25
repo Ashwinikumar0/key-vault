@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Shield, LogOut, Trash2, KeyRound } from "lucide-react-native";
-import { useAuth } from "../context/AuthContext";
-import { theme } from "../theme";
-import { UserRole } from "../../domain/types";
+import { useAuth } from "@/presentation/context/AuthContext";
+import { theme } from "@/presentation/theme";
+import { UserRole } from "@/domain/types";
 
 interface HeaderProps {
   currentView: "dashboard" | "admin";

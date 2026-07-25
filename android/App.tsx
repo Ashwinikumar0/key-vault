@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { SafeAreaView, StatusBar, StyleSheet, ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AuthProvider, useAuth } from "./src/presentation/context/AuthContext";
-import { Header } from "./src/presentation/components/Header";
-import { LoginScreen } from "./src/presentation/screens/LoginScreen";
-import { DashboardScreen } from "./src/presentation/screens/DashboardScreen";
-import { AdminScreen } from "./src/presentation/screens/AdminScreen";
-import { DeleteModal } from "./src/presentation/components/DeleteModal";
-import { api } from "./src/data/api";
-import { theme } from "./src/presentation/theme";
+import { AuthProvider, useAuth } from "@/presentation/context/AuthContext";
+import { Header } from "@/presentation/components/Header";
+import { LoginScreen } from "@/presentation/screens/LoginScreen";
+import { DashboardScreen } from "@/presentation/screens/DashboardScreen";
+import { AdminScreen } from "@/presentation/screens/AdminScreen";
+import { DeleteModal } from "@/presentation/components/DeleteModal";
+import { userApi } from "@/data/api/userApi";
+import { theme } from "@/presentation/theme";
 
 const MainAppNavigator: React.FC = () => {
   const { user, isLoading, logout } = useAuth();
@@ -31,7 +31,7 @@ const MainAppNavigator: React.FC = () => {
   const handleConfirmDeleteAccount = async () => {
     setIsDeletingAccount(true);
     try {
-      await api.user.deleteAccount();
+      await userApi.deleteAccount();
       setIsDeleteAccountModalOpen(false);
       await logout();
     } catch (err: any) {

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { Lock, Unlock, Eye, EyeOff, Pencil, Trash2, KeyRound } from "lucide-react-native";
-import { Secret, CustomField, SecretPayload } from "../../domain/types";
-import { decryptData } from "../../domain/crypto";
-import { useAuth } from "../context/AuthContext";
-import { theme } from "../theme";
+import { Secret, CustomField, SecretPayload } from "@/domain/types";
+import { decryptData } from "@/domain/crypto";
+import { useAuth } from "@/presentation/context/AuthContext";
+import { theme } from "@/presentation/theme";
 
 interface SecretCardProps {
   secret: Secret;

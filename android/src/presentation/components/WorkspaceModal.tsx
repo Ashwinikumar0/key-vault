@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { X } from "lucide-react-native";
-import { Workspace } from "../../domain/types";
-import { theme } from "../theme";
+import { Workspace } from "@/domain/types";
+import { theme } from "@/presentation/theme";
 
 interface WorkspaceModalProps {
   visible: boolean;
@@ -48,6 +48,8 @@ export const WorkspaceModal: React.FC<WorkspaceModalProps> = ({
       setIsSaving(false);
     }
   };
+
+  if (!visible) return null;
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>

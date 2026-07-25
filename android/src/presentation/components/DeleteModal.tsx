@@ -1,7 +1,7 @@
 import React from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { AlertTriangle, Trash2, X } from "lucide-react-native";
-import { theme } from "../theme";
+import { theme } from "@/presentation/theme";
 
 interface DeleteModalProps {
   visible: boolean;
@@ -22,6 +22,8 @@ export const DeleteModal: React.FC<DeleteModalProps> = ({
   onConfirm,
   isDeleting = false,
 }) => {
+  if (!visible) return null;
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>

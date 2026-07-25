@@ -1,8 +1,8 @@
 import React from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { Folder, Plus, Pencil, Trash2 } from "lucide-react-native";
-import { Workspace } from "../../domain/types";
-import { theme } from "../theme";
+import { Workspace } from "@/domain/types";
+import { theme } from "@/presentation/theme";
 
 interface WorkspaceSelectorProps {
   workspaces: Workspace[];
@@ -24,7 +24,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>WORKSPACES ({workspaces.length})</Text>
+        <Text style={styles.sectionTitle}>WORKSPACES ({(workspaces || []).length})</Text>
         <TouchableOpacity style={styles.addBtn} onPress={onCreateWorkspace}>
           <Plus size={14} color={theme.colors.primary} />
           <Text style={styles.addBtnText}>New</Text>
@@ -32,7 +32,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {workspaces.map((ws) => {
+        {(workspaces || []).map((ws) => {
           const isSelected = ws.id === selectedWorkspaceId;
           return (
             <View key={ws.id} style={[styles.pill, isSelected && styles.pillSelected]}>

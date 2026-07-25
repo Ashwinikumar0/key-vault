@@ -10,8 +10,8 @@ import {
   Platform,
 } from "react-native";
 import { KeyRound, Shield, Eye, EyeOff } from "lucide-react-native";
-import { useAuth } from "../context/AuthContext";
-import { theme } from "../theme";
+import { useAuth } from "@/presentation/context/AuthContext";
+import { theme } from "@/presentation/theme";
 
 export const LoginScreen: React.FC = () => {
   const { login } = useAuth();

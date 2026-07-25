@@ -1,72 +1,81 @@
-import * as Crypto from "expo-crypto";
-
-/**
- * Derives Auth Hash for server authentication using PBKDF2-HMAC-SHA256 (100,000 iterations).
- * Zero-Knowledge Guarantee: Raw master password NEVER leaves the client device.
- */
-export async function deriveAuthHash(password: string, email: string): Promise<string> {
-  const salt = `salt-${email.toLowerCase().trim()}`;
-
-  if (typeof globalThis.crypto?.subtle !== "undefined") {
-    const encoder = new TextEncoder();
-    const keyMaterial = await globalThis.crypto.subtle.importKey(
-      "raw",
-      encoder.encode(password),
-      "PBKDF2",
-      false,
-      ["deriveBits"]
-    );
-
-    const derivedBits = await globalThis.crypto.subtle.deriveBits(
-      {
-        name: "PBKDF2",
-        salt: encoder.encode(salt),
-        iterations: 100000,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      256
-    );
-
-    const hashArray = Array.from(new Uint8Array(derivedBits));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  }
-
-  // Fallback for React Native environments using SHA-256 digest hashing
-  const digest = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    `${password}:${salt}:100000`
-  );
-  return digest;
+export interface DerivedCredentials {
+  authHash: string;
+  encryptionKey: CryptoKey;
 }
 
 /**
- * Derives Client AES-GCM Encryption Key from Master Password + User Email.
+ * Derives Auth Hash for server login and AES-GCM Encryption Key for local vault operations.
+ * Must match the web app deriveKeys algorithm 1:1.
  */
-export async function deriveEncryptionKey(password: string, email: string): Promise<CryptoKey> {
-  const salt = `enc-salt-${email.toLowerCase().trim()}`;
+export async function deriveKeys(password: string, email: string): Promise<DerivedCredentials> {
   const encoder = new TextEncoder();
+  const passwordBytes = encoder.encode(password);
+  const cryptoObj = globalThis.crypto;
 
-  const keyMaterial = await globalThis.crypto.subtle.importKey(
+  // 1. Import raw password as PBKDF2 base key
+  const baseKey = await cryptoObj.subtle.importKey(
     "raw",
-    encoder.encode(password),
-    "PBKDF2",
+    passwordBytes,
+    { name: "PBKDF2" },
     false,
-    ["deriveKey"]
+    ["deriveBits"]
   );
 
-  return await globalThis.crypto.subtle.deriveKey(
+  // 2. Derive 256-bit Stretched Master Key (100,000 iterations, SHA-256, salt: email)
+  const emailSalt = encoder.encode(email.toLowerCase().trim());
+  const masterKeyBytes = await cryptoObj.subtle.deriveBits(
     {
       name: "PBKDF2",
-      salt: encoder.encode(salt),
+      salt: emailSalt,
       iterations: 100000,
       hash: "SHA-256",
     },
-    keyMaterial,
+    baseKey,
+    256
+  );
+
+  // 3. Import master key bytes as base key for sub-derivations
+  const masterBaseKey = await cryptoObj.subtle.importKey(
+    "raw",
+    masterKeyBytes,
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey", "deriveBits"]
+  );
+
+  // 4. Derive 256-bit Authentication Hash (1 iteration, SHA-256, salt: "auth-key-salt")
+  const authSalt = encoder.encode("auth-key-salt");
+  const authHashBytes = await cryptoObj.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: authSalt,
+      iterations: 1,
+      hash: "SHA-256",
+    },
+    masterBaseKey,
+    256
+  );
+
+  const authHash = Array.from(new Uint8Array(authHashBytes))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  // 5. Derive 256-bit AES-GCM Encryption Key (1 iteration, SHA-256, salt: "encryption-key-salt")
+  const encryptionSalt = encoder.encode("encryption-key-salt");
+  const encryptionKey = await cryptoObj.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encryptionSalt,
+      iterations: 1,
+      hash: "SHA-256",
+    },
+    masterBaseKey,
     { name: "AES-GCM", length: 256 },
     true,
     ["encrypt", "decrypt"]
   );
+
+  return { authHash, encryptionKey };
 }
 
 /**
@@ -112,9 +121,6 @@ export async function decryptData(
   return decoder.decode(decryptedBuffer);
 }
 
-/**
- * Utility: Convert ArrayBuffer to Base64 String
- */
 function bufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
@@ -124,9 +130,6 @@ function bufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-/**
- * Utility: Convert Base64 String to ArrayBuffer
- */
 function base64ToBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);

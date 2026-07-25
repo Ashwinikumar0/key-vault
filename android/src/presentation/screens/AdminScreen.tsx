@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,56 +9,28 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Shield, UserPlus, Users, Key } from "lucide-react-native";
-import { UserStat } from "../../domain/types";
-import { api } from "../../data/api";
-import { theme } from "../theme";
+import { useAdmin } from "@/presentation/hooks/useAdmin";
+import { theme } from "@/presentation/theme";
 
 export const AdminScreen: React.FC = () => {
-  const [stats, setStats] = useState<UserStat[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const {
+    stats,
+    isLoading,
+    isCreating,
+    tempPasswordResult,
+    errorText,
+    createUser,
+  } = useAdmin();
 
-  // New user creation state
   const [newEmail, setNewEmail] = useState<string>("");
   const [newRole, setNewRole] = useState<string>("user");
-  const [isCreating, setIsCreating] = useState<boolean>(false);
-  const [tempPasswordResult, setTempPasswordResult] = useState<string | null>(null);
-  const [errorText, setErrorText] = useState<string | null>(null);
-
-  const loadStats = async () => {
-    setIsLoading(true);
-    try {
-      const data = await api.admin.getStats();
-      setStats(data);
-    } catch (err: any) {
-      console.warn("Failed to fetch admin stats:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadStats();
-  }, []);
 
   const handleCreateUser = async () => {
-    if (!newEmail.trim()) {
-      setErrorText("Email address is required.");
-      return;
-    }
-
-    setIsCreating(true);
-    setErrorText(null);
-    setTempPasswordResult(null);
-
     try {
-      const res = await api.admin.createUser(newEmail.trim(), newRole);
-      setTempPasswordResult(res.temporary_password);
+      await createUser(newEmail, newRole);
       setNewEmail("");
-      await loadStats();
-    } catch (err: any) {
-      setErrorText(err.message || "Failed to create user account.");
-    } finally {
-      setIsCreating(false);
+    } catch {
+      // Error handled within hook
     }
   };
 
