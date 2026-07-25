@@ -41,7 +41,7 @@ func LoadConfig() (*Config, error) {
 		dbPort = 5432
 	}
 
-	allowedOriginsStr := getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,app://index.html")
+	allowedOriginsStr := getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:8081,app://index.html")
 	var allowedOrigins []string
 	for _, o := range strings.Split(allowedOriginsStr, ",") {
 		trimmed := strings.TrimSpace(o)
