@@ -8,7 +8,7 @@ KeyVault is a production-grade, zero-knowledge, end-to-end encrypted key and cre
 
 ### 1. Cryptographic Key Derivation Flow
 
-When you log in, KeyVault uses the browser's native **Web Crypto API** (or Expo Crypto on Mobile) to perform client-side PBKDF2 stretching:
+When you log in, KeyVault uses client-side PBKDF2 stretching (Web Crypto API on Web / Expo Crypto on Mobile):
 
 ```
 [ Master Password ] + [ Email as Salt ]
@@ -16,13 +16,13 @@ When you log in, KeyVault uses the browser's native **Web Crypto API** (or Expo 
          ▼ (100,000 iterations PBKDF2 SHA-256)
 [ Stretched Master Key ]
          │
-         ├──► (1 iteration PBKDF2, salt: "auth-key-salt") ────► [ Auth Hash ] ──► (sent to server to authenticate)
+         ├──► (1 iteration PBKDF2, salt: "auth-key-salt") ────► [ Auth Hash ] ──► (sent to server/local db)
          │
          └──► (1 iteration PBKDF2, salt: "encryption-key-salt") ──► [ Local AES-256-GCM Key ] (stays in client memory)
 ```
 
-1. **Auth Hash**: Sent to the server for session verification. The server hashes this with `bcrypt` before storing it in the database.
-2. **Local AES-256-GCM Key**: Marked as non-extractable. It remains strictly in-memory inside React. If the user refreshes, closes the app, or remains inactive for **15 minutes**, this key is purged, protecting against memory inspection attacks.
+1. **Auth Hash**: Sent to the server or embedded database for session verification. The auth engine hashes this with `bcrypt` before storing it.
+2. **Local AES-256-GCM Key**: Marked as non-extractable. It remains strictly in-memory inside client React state. If the user closes the app, refreshes, or remains inactive for **15 minutes**, this key is purged, protecting against memory inspection attacks.
 
 ### 2. Zero-Knowledge Dynamic Custom Fields
 
@@ -38,7 +38,7 @@ When storing credentials:
   }
   ```
 - The entire JSON structure (`JSON.stringify(fields)`) is encrypted on the client using **AES-256-GCM** with a random 12-byte Initialization Vector (IV).
-- The server only receives the item name, ciphertext, and IV. The names, values, and types of your custom fields are completely hidden from system administrators.
+- The database only receives item names, ciphertext, and IVs. Field names, values, and types are completely hidden from database administrators.
 
 ### 3. Zero-Knowledge Decrypted Export & Local Import
 
@@ -77,11 +77,13 @@ KeyVault supports exporting and importing your secrets database as structured JS
 - **React Compiler Aligned**: Formatted for standard React 19 compiler workflows, strictly omitting manual memoization.
 - **State & Fetching**: Axios clients with custom interceptors and TanStack Query (`@tanstack/react-query`) for unified cache states.
 
-### Android Mobile Application (`android/`)
+### Android Standalone Mobile Application (`android/`)
 
 - **Framework**: Built with **TypeScript**, **React Native**, and **Expo SDK 52**.
-- **SOLID Architecture**: Modular single-responsibility API layer (`client.ts`, `authApi.ts`, `workspaceApi.ts`, `secretApi.ts`, `userApi.ts`, `adminApi.ts`, `routes.ts`), standalone functions, custom hooks (`useAdmin`, `useVault`), and path aliases (`@/*`, `@domain/*`, `@data/*`, `@presentation/*`).
-- **Mobile Design Aesthetics**: Modern dark glassmorphism design tokens with responsive card field masking, eye toggles, and safe dialog overlays.
+- **Why `localRepos` exist**:
+  1. **100% Offline Standalone Application**: Like the Desktop Electron sidecar app, the Android APK embeds native C SQLite (`expo-sqlite`) directly inside the application bundle. Mobile users can manage, encrypt, and store credentials completely offline without any external Go backend server or network connectivity.
+  2. **SOLID Repository Pattern**: Local repositories (`localAuthRepo`, `localWorkspaceRepo`, `localSecretRepo`, `localUserRepo`, `localAdminRepo`) decouple UI screens and custom hooks (`useVault`, `useAdmin`, `useAuth`) from storage mechanisms. Toggling `EXPO_PUBLIC_USE_EMBEDDED_DATABASE` in `.env` seamlessly switches between embedded local SQLite and remote REST servers without modifying UI components.
+  3. **Preserved Zero-Knowledge Guarantees**: Client-side PBKDF2 key stretching and AES-256-GCM encryption occur entirely in React memory before calling `localSecretRepo`.
 
 ---
 
@@ -111,13 +113,17 @@ KeyVault supports exporting and importing your secrets database as structured JS
 │
 ├── android/                  # Android Mobile Client Application Suite
 │   ├── src/
+│   │   ├── config/           # Strongly typed environment configuration (ENV)
 │   │   ├── domain/           # Cryptography engine & domain types
-│   │   ├── data/             # Modular API services & route constants
+│   │   ├── data/
+│   │   │   ├── api/          # Modular API services & route constants
+│   │   │   └── db/           # Embedded SQLite database & local repositories (localRepos)
 │   │   └── presentation/     # Theme, custom hooks, screens, and components
-│   ├── App.tsx               # SafeArea & Auth Navigation Provider
+│   ├── App.tsx               # Root Navigation & SQLite initialization
 │   ├── index.ts              # Root TypeScript entry point
+│   ├── .env                  # Environment variables
 │   ├── tsconfig.json         # Path alias definitions (@/*)
-│   └── package.json          # Dependencies & mobile scripts
+│   └── package.json          # Dependencies & build scripts
 ```
 
 ---
@@ -157,7 +163,7 @@ Ensure you have `.env` files in both directories:
   VITE_DEFAULT_ADMIN_PASSWORD=adminpassword123
   ```
 
-### 3. Running the Android Application Suite (`android/`)
+### 3. Running & Building the Android Application Suite (`android/`)
 
 From the `android/` directory:
 
@@ -170,14 +176,19 @@ pnpm install
 ```bash
 pnpm web
 ```
-Open `http://localhost:8081` in Chrome/Edge, press `F12` and `Ctrl+Shift+M` to test the mobile handheld app directly on your monitor!
+Open `http://localhost:8081` in Chrome/Edge, press `F12` and `Ctrl+Shift+M` to test the mobile app directly on your monitor!
 
-#### Option B: Native Android Virtual Phone
-Start your Android Studio Emulator, then run:
+#### Option B: Build Standalone APK Locally on Your PC (No Expo Account Required)
+To compile a native `.apk` installer file directly on your local machine using Gradle:
 ```bash
-pnpm start:clear
+pnpm build:apk
 ```
-Then press `a` to launch on the native Android emulator.
+
+#### Option C: Build Standalone APK via EAS Cloud
+If you have an Expo/EAS account configured:
+```bash
+pnpm build:apk:eas
+```
 
 ### 4. Debug via VS Code (Antigravity IDE)
 
@@ -188,6 +199,24 @@ Then press `a` to launch on the native Android emulator.
 2. Open VS Code Debugger panel (`Ctrl+Shift+D`).
 3. Select **Full Stack (Backend + Frontend)**.
 4. Press **F5**. This will build the Go API locally, load `backend/.env` parameters, launch the debugger, and spawn a Chrome session for the frontend.
+
+---
+
+## ⚙️ Environment Configuration (`android/.env`)
+
+Configure variables inside `android/.env`:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8080/api
+EXPO_PUBLIC_API_BASE_URL_EMULATOR=http://10.0.2.2:8080/api
+EXPO_PUBLIC_DEFAULT_ADMIN_EMAIL=admin@keyvault.local
+EXPO_PUBLIC_DEFAULT_ADMIN_PASSWORD=adminpassword123
+EXPO_PUBLIC_DEFAULT_ADMIN_AUTH_HASH=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+EXPO_PUBLIC_USE_EMBEDDED_DATABASE=true
+```
+
+- Set `EXPO_PUBLIC_USE_EMBEDDED_DATABASE=true` for 100% standalone offline APK operation with embedded SQLite (`expo-sqlite`).
+- Set `EXPO_PUBLIC_USE_EMBEDDED_DATABASE=false` to connect to a remote Go REST API backend.
 
 ---
 

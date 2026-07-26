@@ -1,13 +1,8 @@
 import axios from "axios";
-import { Platform } from "react-native";
-
-// Dynamic API base URL: localhost for Web/browser, 10.0.2.2 for Android Virtual Device
-const API_BASE_URL = Platform.OS === "web"
-  ? "http://localhost:8080/api"
-  : "http://10.0.2.2:8080/api";
+import { ENV } from "@/config/env";
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: ENV.getApiBaseUrl(),
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

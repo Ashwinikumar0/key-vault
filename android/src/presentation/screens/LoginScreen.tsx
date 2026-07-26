@@ -11,12 +11,13 @@ import {
 } from "react-native";
 import { KeyRound, Shield, Eye, EyeOff } from "lucide-react-native";
 import { useAuth } from "@/presentation/context/AuthContext";
+import { ENV } from "@/config/env";
 import { theme } from "@/presentation/theme";
 
 export const LoginScreen: React.FC = () => {
   const { login } = useAuth();
-  const [email, setEmail] = useState<string>("admin@keyvault.local");
-  const [password, setPassword] = useState<string>("adminpassword123");
+  const [email, setEmail] = useState<string>(ENV.DEFAULT_ADMIN_EMAIL);
+  const [password, setPassword] = useState<string>(ENV.DEFAULT_ADMIN_PASSWORD);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export const LoginScreen: React.FC = () => {
           <Text style={styles.label}>Email Address</Text>
           <TextInput
             style={styles.input}
-            placeholder="admin@keyvault.local"
+            placeholder={ENV.DEFAULT_ADMIN_EMAIL}
             placeholderTextColor={theme.colors.textMuted}
             value={email}
             onChangeText={setEmail}

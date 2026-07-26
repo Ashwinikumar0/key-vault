@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SafeAreaView, StatusBar, StyleSheet, ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "@/presentation/context/AuthContext";
@@ -8,6 +8,7 @@ import { DashboardScreen } from "@/presentation/screens/DashboardScreen";
 import { AdminScreen } from "@/presentation/screens/AdminScreen";
 import { DeleteModal } from "@/presentation/components/DeleteModal";
 import { userApi } from "@/data/api/userApi";
+import { initLocalDatabase } from "@/data/db/database";
 import { theme } from "@/presentation/theme";
 
 const MainAppNavigator: React.FC = () => {
@@ -15,8 +16,18 @@ const MainAppNavigator: React.FC = () => {
   const [currentView, setCurrentView] = useState<"dashboard" | "admin">("dashboard");
   const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState<boolean>(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
+  const [isDbReady, setIsDbReady] = useState<boolean>(false);
 
-  if (isLoading) {
+  useEffect(() => {
+    initLocalDatabase()
+      .then(() => setIsDbReady(true))
+      .catch((err) => {
+        console.warn("Local SQLite Database initialization failed:", err);
+        setIsDbReady(true);
+      });
+  }, []);
+
+  if (isLoading || !isDbReady) {
     return (
       <View style={styles.loadingScreen}>
         <ActivityIndicator size="large" color={theme.colors.primary} />

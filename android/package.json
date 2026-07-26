@@ -1,7 +1,7 @@
 {
   "name": "key-vault-android",
   "version": "1.0.0",
-  "description": "KeyVault Zero-Knowledge Security Vault - Android Mobile Client Application Suite",
+  "description": "KeyVault Zero-Knowledge Security Vault - Android Standalone Mobile Application",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -9,7 +9,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:android": "eas build --platform android",
+    "build:apk": "npx expo run:android --variant release",
+    "build:apk:eas": "npx eas-cli build -p android --profile preview",
+    "prebuild": "npx expo prebuild",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -19,6 +21,7 @@
     "expo": "~52.0.0",
     "expo-crypto": "~14.0.0",
     "expo-secure-store": "~14.0.0",
+    "expo-sqlite": "~15.0.0",
     "expo-status-bar": "~2.0.0",
     "lucide-react-native": "^0.474.0",
     "react": "18.3.1",
@@ -32,6 +35,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
+    "eas-cli": "^14.0.0",
     "typescript": "^5.3.3"
   },
   "private": true
